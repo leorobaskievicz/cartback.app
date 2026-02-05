@@ -26,16 +26,19 @@ RUN node --import tsx ace.js build --ignore-ts-errors
 # Production stage
 FROM node:20-alpine
 
-WORKDIR /app/apps/api
-
-# Copy the built application
-COPY --from=base /app/apps/api/build ./build
+WORKDIR /app
 
 # Copy workspace structure for module resolution
-COPY --from=base /app/node_modules /app/node_modules
-COPY --from=base /app/packages /app/packages
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/packages ./packages
+
+# Copy the built application
+COPY --from=base /app/apps/api/build ./apps/api/build
 
 WORKDIR /app/apps/api/build
+
+# Set NODE_PATH for module resolution
+ENV NODE_PATH=/app/node_modules
 
 # Expose port
 EXPOSE 3333
