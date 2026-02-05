@@ -27,16 +27,21 @@ FROM node:20-alpine
 
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-WORKDIR /app/apps/web
+WORKDIR /app
+
+# Copy workspace structure for module resolution
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/packages ./packages
+COPY --from=base /app/package.json ./package.json
+COPY --from=base /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 # Copy the built application
-COPY --from=base /app/apps/web ./
+COPY --from=base /app/apps/web ./apps/web
 
-# Copy root dependencies
-COPY --from=base /app/node_modules /app/node_modules
-COPY --from=base /app/packages /app/packages
-COPY --from=base /app/package.json /app/package.json
-COPY --from=base /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
+WORKDIR /app/apps/web
+
+# Set NODE_PATH for module resolution
+ENV NODE_PATH=/app/node_modules
 
 # Expose port
 EXPOSE 3000
