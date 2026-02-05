@@ -27,17 +27,19 @@ FROM node:20-alpine
 
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-WORKDIR /app
+WORKDIR /app/apps/web
 
 # Copy the built application
 COPY --from=base /app/apps/web ./
 
-# Copy node_modules from the build stage
-COPY --from=base /app/node_modules ../node_modules
-COPY --from=base /app/packages ../packages
+# Copy root dependencies
+COPY --from=base /app/node_modules /app/node_modules
+COPY --from=base /app/packages /app/packages
+COPY --from=base /app/package.json /app/package.json
+COPY --from=base /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
 
 # Expose port
 EXPOSE 3000
 
 # Start the preview server
-CMD ["pnpm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD sh -c "pnpm run preview -- --host 0.0.0.0 --port ${PORT:-3000}"
