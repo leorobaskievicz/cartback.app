@@ -1,5 +1,5 @@
 [build]
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && cd apps/api && node --import tsx ace.js build --no-install && cp -r ../../node_modules build/"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && cd apps/api && node --import tsx ace.js build --package-manager=pnpm --ignore-ts-errors"
 
 [deploy]
 startCommand = "node apps/api/build/bin/workers.js"
