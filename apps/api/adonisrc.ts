@@ -11,6 +11,12 @@ export default defineConfig({
     providers: 'providers',
     start: 'start',
   },
+  metaFiles: [
+    {
+      pattern: 'database/migrations/**',
+      reloadServer: false,
+    },
+  ],
   providers: [
     () => import('@adonisjs/core/providers/app_provider'),
     () => import('@adonisjs/core/providers/hash_provider'),
@@ -22,7 +28,6 @@ export default defineConfig({
   commands: [
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
-    () => import('@adonisjs/assembler/commands'),
   ],
   preloads: [
     {
