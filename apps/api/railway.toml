@@ -1,6 +1,5 @@
 [build]
-builder = "nixpacks"
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && cd apps/api && pnpm build"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && cd apps/api && pnpm exec ace build --no-install && cp -r ../../node_modules build/"
 
 [deploy]
 startCommand = "cd apps/api/build && npm ci --omit=dev && node bin/server.js"
