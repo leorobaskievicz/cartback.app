@@ -1,13 +1,19 @@
 # Configuração para Railway/Nixpacks
+[providers]
+pkgs = ["nodejs_20"]
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["pnpm install --frozen-lockfile"]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@8.15.0 --activate",
+  "pnpm install --frozen-lockfile"
+]
 
 [phases.build]
-cmds = ["echo 'Build will be handled by service-specific commands'"]
+cmds = ["pnpm run build"]
 
 [start]
-cmd = "echo 'Start command will be overridden by service settings'"
+cmd = "node apps/api/build/bin/server.js"
