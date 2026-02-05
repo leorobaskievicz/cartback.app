@@ -26,13 +26,16 @@ RUN node --import tsx ace.js build --ignore-ts-errors
 # Production stage
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/apps/api
 
 # Copy the built application
-COPY --from=base /app/apps/api/build ./
+COPY --from=base /app/apps/api/build ./build
 
-# Copy node_modules from the build stage
-COPY --from=base /app/node_modules ./node_modules
+# Copy workspace structure for module resolution
+COPY --from=base /app/node_modules /app/node_modules
+COPY --from=base /app/packages /app/packages
+
+WORKDIR /app/apps/api/build
 
 # Start the workers
 CMD ["node", "bin/workers.js"]
