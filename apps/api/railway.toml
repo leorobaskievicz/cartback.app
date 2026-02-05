@@ -1,8 +1,8 @@
 [build]
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && cd apps/api && node --import tsx ace.js build --package-manager=pnpm --ignore-ts-errors && cp ../../pnpm-lock.yaml build/"
+builder = "dockerfile"
+dockerfilePath = "apps/api/Dockerfile"
 
 [deploy]
-startCommand = "cd apps/api/build && npm ci --omit=dev && node bin/server.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
