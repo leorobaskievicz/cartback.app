@@ -22,6 +22,7 @@ export default defineConfig({
   commands: [
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
+    () => import('@adonisjs/assembler/commands'),
   ],
   preloads: [
     {
