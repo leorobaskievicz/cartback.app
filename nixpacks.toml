@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["echo 'Build will be handled by service-specific railway.toml'"]
+
+[start]
+cmd = "echo 'Start command will be handled by service-specific railway.toml'"
