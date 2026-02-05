@@ -1,9 +1,9 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && node ace build"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @cartback/shared build && pnpm --filter @cartback/api build"
 
 [deploy]
-startCommand = "cd build && npm ci --omit=dev && node bin/server.js"
+startCommand = "node apps/api/build/bin/server.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
