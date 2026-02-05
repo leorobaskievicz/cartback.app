@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "node --import tsx ace.js serve --watch",
-    "build": "node ace build",
+    "build": "node --import tsx ace.js build",
     "start": "node build/bin/server.js",
     "lint": "eslint ."
   },
