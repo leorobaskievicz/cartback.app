@@ -26,20 +26,13 @@ RUN node --import tsx ace.js build --ignore-ts-errors
 # Production stage
 FROM node:20-alpine
 
-RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
-
 WORKDIR /app
 
 # Copy the built application
 COPY --from=base /app/apps/api/build ./
 
-# Copy necessary files for production install
-COPY --from=base /app/pnpm-lock.yaml ./
-COPY --from=base /app/pnpm-workspace.yaml ./
-COPY --from=base /app/packages/shared ./packages/shared
-
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+# Copy node_modules from the build stage
+COPY --from=base /app/node_modules ./node_modules
 
 # Start the workers
 CMD ["node", "bin/workers.js"]
