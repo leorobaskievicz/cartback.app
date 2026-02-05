@@ -1,0 +1,381 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import Tenant from '#models/tenant'
+import WhatsappInstance from '#models/whatsapp_instance'
+import evolutionApiService from '#services/evolution_api_service'
+import { connectWhatsappValidator } from '#validators/whatsapp'
+import { DateTime } from 'luxon'
+import env from '#start/env'
+
+export default class WhatsappController {
+  /**
+   * GET /api/whatsapp
+   * Status da instância WhatsApp do tenant
+   */
+  async index({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const instance = await WhatsappInstance.query().where('tenant_id', tenant.id).first()
+
+    if (!instance) {
+      return response.ok({
+        success: true,
+        data: {
+          connected: false,
+          instance: null,
+        },
+      })
+    }
+
+    // Se tiver instância, verificar status na Evolution API
+    try {
+      const connectionState = await evolutionApiService.getConnectionState(instance.instanceName)
+
+      // Atualizar status no banco se mudou
+      if (connectionState.state !== instance.status) {
+        if (connectionState.state === 'open') {
+          instance.status = 'connected'
+          instance.connectedAt = DateTime.now()
+        } else if (connectionState.state === 'close') {
+          instance.status = 'disconnected'
+        } else {
+          instance.status = 'connecting'
+        }
+        await instance.save()
+      }
+    } catch (error) {
+      // Se não conseguir verificar, manter status atual
+      console.error('Error checking Evolution API status:', error)
+    }
+
+    return response.ok({
+      success: true,
+      data: {
+        connected: instance.status === 'connected',
+        instance: {
+          id: instance.id,
+          instanceName: instance.instanceName,
+          phoneNumber: instance.phoneNumber,
+          status: instance.status,
+          connectedAt: instance.connectedAt,
+        },
+      },
+    })
+  }
+
+  /**
+   * POST /api/whatsapp/connect
+   * Gera QR Code para conectar WhatsApp
+   */
+  async connect({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+    const data = await request.validateUsing(connectWhatsappValidator)
+
+    try {
+      // Verificar se já existe instância
+      let instance = await WhatsappInstance.query().where('tenant_id', tenant.id).first()
+
+      // Se existir e estiver conectada, retornar erro
+      if (instance && instance.status === 'connected') {
+        return response.badRequest({
+          success: false,
+          error: {
+            code: 'ALREADY_CONNECTED',
+            message: 'WhatsApp instance is already connected',
+          },
+        })
+      }
+
+      // Se não existir, criar no banco
+      if (!instance) {
+        instance = await WhatsappInstance.create({
+          tenantId: tenant.id,
+          instanceName: data.instanceName,
+          status: 'connecting',
+        })
+      }
+
+      // Verificar se instância existe na Evolution API
+      const existingInstance = await evolutionApiService.fetchInstance(instance.instanceName)
+
+      let qrCodeData
+
+      if (!existingInstance) {
+        // Criar instância na Evolution API
+        const webhookUrl = `${env.get('APP_URL')}/api/whatsapp/webhook`
+
+        const createResult = await evolutionApiService.createInstance(instance.instanceName, {
+          qrcode: true,
+          webhookUrl,
+          webhookByEvents: true,
+          webhookEvents: ['CONNECTION_UPDATE', 'QRCODE_UPDATED', 'MESSAGES_UPSERT'],
+        })
+
+        qrCodeData = createResult.qrcode
+        instance.instanceId = createResult.instance.instanceName
+      } else {
+        // Buscar QR code da instância existente
+        qrCodeData = await evolutionApiService.getQrCode(instance.instanceName)
+      }
+
+      // Atualizar QR code no banco
+      if (qrCodeData) {
+        instance.qrCode = qrCodeData.base64
+        instance.status = 'connecting'
+        await instance.save()
+
+        return response.ok({
+          success: true,
+          data: {
+            qrCode: qrCodeData.base64,
+            instanceName: instance.instanceName,
+            expiresIn: 60, // QR code geralmente expira em 60 segundos
+          },
+        })
+      } else {
+        // Se não tem QR code, pode ser que já esteja conectado
+        const connectionState = await evolutionApiService.getConnectionState(
+          instance.instanceName
+        )
+
+        if (connectionState.state === 'open') {
+          instance.status = 'connected'
+          instance.connectedAt = DateTime.now()
+          instance.qrCode = null
+          await instance.save()
+
+          return response.ok({
+            success: true,
+            data: {
+              message: 'Instance is already connected',
+              instanceName: instance.instanceName,
+              status: 'connected',
+            },
+          })
+        }
+
+        return response.badRequest({
+          success: false,
+          error: {
+            code: 'NO_QRCODE_AVAILABLE',
+            message: 'QR code not available. Try again.',
+          },
+        })
+      }
+    } catch (error: any) {
+      console.error('Error connecting WhatsApp:', error)
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'WHATSAPP_CONNECTION_FAILED',
+          message: 'Failed to generate QR code',
+          details: error.response?.data || error.message,
+        },
+      })
+    }
+  }
+
+  /**
+   * GET /api/whatsapp/qrcode
+   * Retorna QR Code atual
+   */
+  async qrcode({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const instance = await WhatsappInstance.query().where('tenant_id', tenant.id).firstOrFail()
+
+    // Se já está conectado, retornar erro
+    if (instance.status === 'connected') {
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'ALREADY_CONNECTED',
+          message: 'Instance is already connected. No QR code needed.',
+        },
+      })
+    }
+
+    try {
+      // Buscar QR code atualizado da Evolution API
+      const qrCodeData = await evolutionApiService.getQrCode(instance.instanceName)
+
+      if (qrCodeData) {
+        // Atualizar no banco
+        instance.qrCode = qrCodeData.base64
+        await instance.save()
+
+        return response.ok({
+          success: true,
+          data: {
+            qrCode: qrCodeData.base64,
+            status: instance.status,
+            expiresIn: 60,
+          },
+        })
+      }
+
+      // Se não tem QR code, verificar se conectou
+      const connectionState = await evolutionApiService.getConnectionState(instance.instanceName)
+
+      if (connectionState.state === 'open') {
+        instance.status = 'connected'
+        instance.connectedAt = DateTime.now()
+        instance.qrCode = null
+        await instance.save()
+
+        return response.ok({
+          success: true,
+          data: {
+            message: 'Instance connected successfully',
+            status: 'connected',
+          },
+        })
+      }
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'NO_QRCODE',
+          message: 'QR code expired or not available',
+        },
+      })
+    } catch (error) {
+      console.error('Error getting QR code:', error)
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'QRCODE_ERROR',
+          message: 'Failed to get QR code',
+        },
+      })
+    }
+  }
+
+  /**
+   * POST /api/whatsapp/disconnect
+   * Desconecta WhatsApp
+   */
+  async disconnect({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const instance = await WhatsappInstance.query().where('tenant_id', tenant.id).firstOrFail()
+
+    try {
+      // Fazer logout na Evolution API
+      await evolutionApiService.logout(instance.instanceName)
+
+      // Atualizar status no banco
+      instance.status = 'disconnected'
+      instance.qrCode = null
+      instance.phoneNumber = null
+      instance.connectedAt = null
+      await instance.save()
+
+      return response.ok({
+        success: true,
+        data: {
+          message: 'WhatsApp disconnected successfully',
+        },
+      })
+    } catch (error) {
+      console.error('Error disconnecting WhatsApp:', error)
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'DISCONNECT_FAILED',
+          message: 'Failed to disconnect WhatsApp',
+        },
+      })
+    }
+  }
+
+  /**
+   * POST /api/whatsapp/webhook
+   * Webhook da Evolution API para updates de status
+   * Recebe eventos: CONNECTION_UPDATE, QRCODE_UPDATED
+   */
+  async webhook({ request, response }: HttpContext) {
+    const payload = request.body()
+
+    console.log('Evolution API Webhook:', JSON.stringify(payload, null, 2))
+
+    try {
+      const { instance: instanceName, event, data } = payload
+
+      if (!instanceName) {
+        return response.badRequest({
+          success: false,
+          error: { code: 'MISSING_INSTANCE', message: 'Instance name is required' },
+        })
+      }
+
+      // Buscar instância no banco
+      const instance = await WhatsappInstance.query()
+        .where('instance_name', instanceName)
+        .first()
+
+      if (!instance) {
+        return response.notFound({
+          success: false,
+          error: { code: 'INSTANCE_NOT_FOUND', message: 'Instance not found' },
+        })
+      }
+
+      // Processar evento CONNECTION_UPDATE
+      if (event === 'CONNECTION_UPDATE' || event === 'connection.update') {
+        const state = data.state || data.connection
+
+        if (state === 'open') {
+          instance.status = 'connected'
+          instance.phoneNumber = data.phoneNumber || data.instance?.number
+          instance.connectedAt = DateTime.now()
+          instance.qrCode = null
+          await instance.save()
+
+          console.log(`✅ Instance ${instanceName} connected!`)
+        } else if (state === 'close') {
+          instance.status = 'disconnected'
+          instance.phoneNumber = null
+          instance.connectedAt = null
+          await instance.save()
+
+          console.log(`❌ Instance ${instanceName} disconnected`)
+        } else if (state === 'connecting') {
+          instance.status = 'connecting'
+          await instance.save()
+        }
+      }
+
+      // Processar evento QRCODE_UPDATED
+      if (event === 'QRCODE_UPDATED' || event === 'qrcode.updated') {
+        const qrCode = data.qrcode?.base64 || data.base64
+
+        if (qrCode) {
+          instance.qrCode = qrCode
+          instance.status = 'connecting'
+          await instance.save()
+
+          console.log(`🔄 QR Code updated for instance ${instanceName}`)
+        }
+      }
+
+      return response.ok({ success: true })
+    } catch (error) {
+      console.error('Error processing webhook:', error)
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'WEBHOOK_ERROR',
+          message: 'Error processing webhook',
+        },
+      })
+    }
+  }
+}

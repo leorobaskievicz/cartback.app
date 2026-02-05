@@ -1,0 +1,126 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import Tenant from '#models/tenant'
+import MessageTemplate from '#models/message_template'
+import {
+  createMessageTemplateValidator,
+  updateMessageTemplateValidator,
+  reorderTemplatesValidator,
+} from '#validators/message_template'
+
+export default class MessageTemplatesController {
+  /**
+   * GET /api/templates
+   * Lista todos os templates do tenant
+   */
+  async index({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const templates = await MessageTemplate.query()
+      .where('tenant_id', tenant.id)
+      .orderBy('sort_order', 'asc')
+
+    return response.ok({
+      success: true,
+      data: templates,
+    })
+  }
+
+  /**
+   * POST /api/templates
+   * Cria novo template
+   */
+  async store({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+    const data = await request.validateUsing(createMessageTemplateValidator)
+
+    // Buscar maior sort_order
+    const maxSortOrder = await MessageTemplate.query()
+      .where('tenant_id', tenant.id)
+      .max('sort_order as max')
+      .firstOrFail()
+
+    const template = await MessageTemplate.create({
+      tenantId: tenant.id,
+      name: data.name,
+      triggerType: data.triggerType || 'abandoned_cart',
+      delayMinutes: data.delayMinutes,
+      content: data.content,
+      isActive: data.isActive ?? true,
+      sortOrder: (maxSortOrder.$extras.max || 0) + 1,
+    })
+
+    return response.created({
+      success: true,
+      data: template,
+    })
+  }
+
+  /**
+   * PUT /api/templates/:id
+   * Atualiza template
+   */
+  async update({ auth, params, request, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+    const data = await request.validateUsing(updateMessageTemplateValidator)
+
+    const template = await MessageTemplate.query()
+      .where('id', params.id)
+      .where('tenant_id', tenant.id)
+      .firstOrFail()
+
+    template.merge(data)
+    await template.save()
+
+    return response.ok({
+      success: true,
+      data: template,
+    })
+  }
+
+  /**
+   * DELETE /api/templates/:id
+   * Remove template
+   */
+  async destroy({ auth, params, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const template = await MessageTemplate.query()
+      .where('id', params.id)
+      .where('tenant_id', tenant.id)
+      .firstOrFail()
+
+    await template.delete()
+
+    return response.ok({
+      success: true,
+      data: { message: 'Template deleted successfully' },
+    })
+  }
+
+  /**
+   * PUT /api/templates/reorder
+   * Reordena templates (atualiza sort_order)
+   */
+  async reorder({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+    const { templates } = await request.validateUsing(reorderTemplatesValidator)
+
+    // Atualizar sort_order de cada template
+    for (const item of templates) {
+      await MessageTemplate.query()
+        .where('id', item.id)
+        .where('tenant_id', tenant.id)
+        .update({ sort_order: item.sortOrder })
+    }
+
+    return response.ok({
+      success: true,
+      data: { message: 'Templates reordered successfully' },
+    })
+  }
+}

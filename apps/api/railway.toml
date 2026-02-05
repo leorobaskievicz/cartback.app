@@ -1,0 +1,13 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && node ace build"
+
+[deploy]
+startCommand = "cd build && npm ci --omit=dev && node bin/server.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[healthcheck]
+path = "/health"
+timeout = 100
+interval = 60

@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cartback Icon - Monochrome White -->
+  <!-- Para uso em fundos coloridos/escuros -->
+  
+  <g stroke="white" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Corpo do carrinho -->
+    <path d="M140 200 L170 200 L210 310 L350 310 L390 220 L230 220" />
+    
+    <!-- Rodas -->
+    <circle cx="230" cy="360" r="26" fill="white" />
+    <circle cx="330" cy="360" r="26" fill="white" />
+    
+    <!-- Seta de retorno -->
+    <path d="M350 140 C290 120 230 140 200 190" />
+    <path d="M200 190 L230 155" />
+    <path d="M200 190 L170 160" />
+  </g>
+</svg>

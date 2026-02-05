@@ -1,0 +1,164 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import User from '#models/user'
+import Tenant from '#models/tenant'
+import { registerValidator, loginValidator } from '#validators/auth'
+import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
+
+export default class AuthController {
+  /**
+   * POST /api/auth/register
+   * Registra novo tenant + user owner
+   */
+  async register({ request, response }: HttpContext) {
+    const data = await registerValidator.validate(request.all())
+
+    // Usar transação para garantir que tenant e user sejam criados juntos
+    const trx = await db.transaction()
+
+    try {
+      // Criar tenant
+      const tenant = await Tenant.create(
+        {
+          name: data.tenantName,
+          email: data.email,
+          phone: data.phone || null,
+          plan: 'trial',
+          trialEndsAt: DateTime.now().plus({ days: 14 }),
+          isActive: true,
+        },
+        { client: trx }
+      )
+
+      // Criar user owner
+      const user = await User.create(
+        {
+          tenantId: tenant.id,
+          email: data.email,
+          password: data.password,
+          name: data.name,
+          role: 'owner',
+        },
+        { client: trx }
+      )
+
+      // Criar token de acesso
+      const token = await User.accessTokens.create(user, ['*'], { expiresIn: '30 days' })
+
+      await trx.commit()
+
+      return response.created({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          },
+          tenant: {
+            id: tenant.id,
+            uuid: tenant.uuid,
+            name: tenant.name,
+            plan: tenant.plan,
+            trialEndsAt: tenant.trialEndsAt,
+          },
+          token: token.value!.release(),
+        },
+      })
+    } catch (error) {
+      await trx.rollback()
+      throw error
+    }
+  }
+
+  /**
+   * POST /api/auth/login
+   * Login com email/password
+   */
+  async login({ request, response }: HttpContext) {
+    const { email, password } = await loginValidator.validate(request.all())
+
+    const user = await User.verifyCredentials(email, password)
+
+    // Carregar tenant
+    await user.load('tenant')
+
+    if (!user.tenant || !user.tenant.isActive) {
+      return response.forbidden({
+        success: false,
+        error: {
+          code: 'TENANT_INACTIVE',
+          message: 'Your account is inactive. Please contact support.',
+        },
+      })
+    }
+
+    const token = await User.accessTokens.create(user, ['*'], { expiresIn: '30 days' })
+
+    return response.ok({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        tenant: {
+          id: user.tenant.id,
+          uuid: user.tenant.uuid,
+          name: user.tenant.name,
+          plan: user.tenant.plan,
+        },
+        token: token.value!.release(),
+      },
+    })
+  }
+
+  /**
+   * POST /api/auth/logout
+   * Logout (client-side - remove token do localStorage)
+   */
+  async logout({ response }: HttpContext) {
+    // Com access tokens, o logout é client-side
+    // O cliente deve remover o token do localStorage
+    return response.ok({
+      success: true,
+      data: { message: 'Logged out successfully' },
+    })
+  }
+
+  /**
+   * GET /api/auth/me
+   * Retorna dados do usuário autenticado + tenant
+   */
+  async me({ auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    await user.load('tenant')
+
+    return response.ok({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        tenant: user.tenant
+          ? {
+              id: user.tenant.id,
+              uuid: user.tenant.uuid,
+              name: user.tenant.name,
+              email: user.tenant.email,
+              phone: user.tenant.phone,
+              plan: user.tenant.plan,
+              trialEndsAt: user.tenant.trialEndsAt,
+              isActive: user.tenant.isActive,
+            }
+          : null,
+      },
+    })
+  }
+}

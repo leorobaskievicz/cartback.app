@@ -1,0 +1,179 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import StoreIntegration from '#models/store_integration'
+import Tenant from '#models/tenant'
+import nuvemshopService from '#services/nuvemshop_service'
+import { randomUUID } from 'crypto'
+import env from '#start/env'
+import { DateTime } from 'luxon'
+
+export default class StoreIntegrationsController {
+  /**
+   * GET /api/integrations
+   * Lista todas as integrações do tenant
+   */
+  async index({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const integrations = await StoreIntegration.query().where('tenant_id', tenant.id)
+
+    return response.ok({
+      success: true,
+      data: integrations.map((integration) => ({
+        id: integration.id,
+        platform: integration.platform,
+        storeName: integration.storeName,
+        storeUrl: integration.storeUrl,
+        isActive: integration.isActive,
+        connectedAt: integration.connectedAt,
+      })),
+    })
+  }
+
+  /**
+   * POST /api/integrations/nuvemshop/connect
+   * Inicia fluxo OAuth da Nuvemshop
+   */
+  async connectNuvemshop({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const platform = 'nuvemshop'
+
+    if (!user.tenantId) {
+      return response.badRequest({
+        success: false,
+        error: { code: 'NO_TENANT', message: 'User has no tenant' },
+      })
+    }
+
+    // State com tenant ID + UUID para segurança
+    const state = `${user.tenantId}:${randomUUID()}`
+
+    // Gerar URL de autorização
+    const authUrl = nuvemshopService.getAuthUrl(state)
+
+    return response.ok({
+      success: true,
+      data: { authUrl, platform },
+    })
+  }
+
+  /**
+   * GET /api/integrations/nuvemshop/callback
+   * Callback OAuth da Nuvemshop (sem autenticação)
+   */
+  async nuvemshopCallback({ request, response }: HttpContext) {
+    const { code, state } = request.qs()
+
+    if (!code || !state) {
+      console.error('[Nuvemshop Callback] Código ou state ausente')
+      const webUrl = env.get('WEB_URL', 'http://localhost:5173')
+      return response.redirect(`${webUrl}/integrations?error=missing_params`)
+    }
+
+    try {
+      // Extrair tenantId do state
+      const [tenantIdStr] = state.split(':')
+      const tenantId = parseInt(tenantIdStr)
+
+      if (!tenantId || isNaN(tenantId)) {
+        throw new Error('Invalid tenant ID in state')
+      }
+
+      // Buscar tenant
+      const tenant = await Tenant.find(tenantId)
+      if (!tenant) {
+        throw new Error('Tenant not found')
+      }
+
+      // Trocar código por token
+      console.log('[Nuvemshop Callback] Trocando código por token...')
+      const tokens = await nuvemshopService.exchangeCode(code)
+
+      console.log(`[Nuvemshop Callback] Token recebido para store ID: ${tokens.user_id}`)
+
+      // Buscar informações da loja
+      const storeInfo = await nuvemshopService.getStoreInfo(tokens.user_id, tokens.access_token)
+
+      console.log(`[Nuvemshop Callback] Loja: ${storeInfo.name}`)
+
+      // Criar ou atualizar integração
+      const integration = await StoreIntegration.updateOrCreate(
+        {
+          tenantId: tenant.id,
+          platform: 'nuvemshop',
+        },
+        {
+          storeId: String(tokens.user_id),
+          storeName: storeInfo.name,
+          storeUrl: storeInfo.url_with_protocol,
+          accessToken: tokens.access_token, // TODO: Encriptar em produção
+          isActive: true,
+          connectedAt: DateTime.now(),
+        }
+      )
+
+      console.log(`[Nuvemshop Callback] Integração salva (ID: ${integration.id})`)
+
+      // Configurar webhooks
+      const appUrl = env.get('APP_URL', 'http://localhost:3333')
+      const webhookCartUrl = `${appUrl}/api/webhooks/nuvemshop/${tenant.uuid}`
+      const webhookOrderUrl = `${appUrl}/api/webhooks/nuvemshop/${tenant.uuid}/order`
+
+      console.log('[Nuvemshop Callback] Configurando webhooks...')
+
+      await nuvemshopService.createAbandonedCartWebhook(
+        tokens.user_id,
+        tokens.access_token,
+        webhookCartUrl
+      )
+
+      await nuvemshopService.createOrderWebhook(
+        tokens.user_id,
+        tokens.access_token,
+        webhookOrderUrl
+      )
+
+      console.log('[Nuvemshop Callback] Webhooks configurados com sucesso!')
+
+      // Redirecionar para frontend com sucesso
+      const webUrl = env.get('WEB_URL', 'http://localhost:5173')
+      return response.redirect(`${webUrl}/integrations?connected=nuvemshop`)
+    } catch (error: any) {
+      console.error('[Nuvemshop Callback] Erro:', error.response?.data || error.message)
+
+      const webUrl = env.get('WEB_URL', 'http://localhost:5173')
+      return response.redirect(`${webUrl}/integrations?error=nuvemshop`)
+    }
+  }
+
+  /**
+   * DELETE /api/integrations/:id
+   * Desconecta integração
+   */
+  async destroy({ auth, params, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    const integration = await StoreIntegration.query()
+      .where('id', params.id)
+      .where('tenant_id', tenant.id)
+      .firstOrFail()
+
+    // Marcar como inativa (soft delete)
+    integration.isActive = false
+    await integration.save()
+
+    // TODO: Remover webhooks da plataforma
+    // if (integration.platform === 'nuvemshop') {
+    //   const webhooks = await nuvemshopService.listWebhooks(...)
+    //   for (const webhook of webhooks) {
+    //     await nuvemshopService.deleteWebhook(...)
+    //   }
+    // }
+
+    return response.ok({
+      success: true,
+      data: { message: 'Integration disconnected successfully' },
+    })
+  }
+}

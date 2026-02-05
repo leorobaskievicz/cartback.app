@@ -1,0 +1,31 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import Tenant from '#models/tenant'
+import { updateTenantValidator } from '#validators/tenant'
+
+export default class TenantsController {
+  /**
+   * PUT /api/tenant
+   * Atualiza dados do tenant
+   */
+  async update({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+    const data = await request.validateUsing(updateTenantValidator)
+
+    tenant.merge(data)
+    await tenant.save()
+
+    return response.ok({
+      success: true,
+      data: {
+        id: tenant.id,
+        uuid: tenant.uuid,
+        name: tenant.name,
+        email: tenant.email,
+        phone: tenant.phone,
+        plan: tenant.plan,
+        isActive: tenant.isActive,
+      },
+    })
+  }
+}

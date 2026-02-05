@@ -1,0 +1,69 @@
+/* Cartback Global Styles */
+
+:root {
+  --cartback-primary: #25D366;
+  --cartback-primary-dark: #128C7E;
+  --cartback-gradient: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+}
+
+/* Reset & Base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #25D366;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #128C7E;
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #25D366 transparent;
+}
+
+/* Selection */
+::selection {
+  background: rgba(37, 211, 102, 0.2);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(37, 211, 102, 0.2);
+  color: inherit;
+}
+
+/* Focus Outline */
+:focus-visible {
+  outline: 2px solid #25D366;
+  outline-offset: 2px;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
