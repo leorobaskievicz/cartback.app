@@ -1,0 +1,13 @@
+# Configuração para Railway/Nixpacks
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["echo 'Build will be handled by service-specific commands'"]
+
+[start]
+cmd = "echo 'Start command will be overridden by service settings'"
