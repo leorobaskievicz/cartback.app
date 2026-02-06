@@ -28,11 +28,11 @@ FROM nginx:alpine
 # Copy built files from build stage
 COPY --from=base /app/apps/web/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY --from=base /app/apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration template
+COPY --from=base /app/apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 
-# Expose port
+# Expose port (Railway uses $PORT env var)
 EXPOSE 80
 
-# Start nginx
+# Start nginx - it will automatically substitute ${PORT} in templates
 CMD ["nginx", "-g", "daemon off;"]
