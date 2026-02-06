@@ -349,7 +349,7 @@ export default function Settings() {
                   <Button
                     variant="contained"
                     fullWidth
-                    onClick={() => navigate('/plans')}
+                    onClick={() => navigate('/dashboard/plans')}
                     sx={{ mb: 1 }}
                   >
                     {subscription.plan === 'trial' ? 'Escolher plano' : 'Alterar plano'}
