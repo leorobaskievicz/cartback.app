@@ -45,21 +45,19 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
     .where('status', 'connected')
     .first()
 
-  if (!whatsapp) {
-    console.log(
-      `[ProcessCart] Tenant ${data.tenantId} não tem WhatsApp conectado, ignorando carrinho`
-    )
-    return
-  }
-
   // 2. Verificar limite de mensagens
   const subscription = await Subscription.query().where('tenant_id', data.tenantId).first()
 
-  if (subscription && subscription.messagesUsed >= subscription.messagesLimit) {
+  const canSendMessages = whatsapp && subscription && subscription.messagesUsed < subscription.messagesLimit
+
+  if (!whatsapp) {
     console.log(
-      `[ProcessCart] Tenant ${data.tenantId} atingiu limite de mensagens (${subscription.messagesUsed}/${subscription.messagesLimit})`
+      `[ProcessCart] ⚠️ Tenant ${data.tenantId} não tem WhatsApp conectado, carrinho será criado mas mensagens não serão enviadas`
     )
-    return
+  } else if (subscription && subscription.messagesUsed >= subscription.messagesLimit) {
+    console.log(
+      `[ProcessCart] ⚠️ Tenant ${data.tenantId} atingiu limite de mensagens (${subscription.messagesUsed}/${subscription.messagesLimit})`
+    )
   }
 
   // 3. Verificar se carrinho já existe (evitar duplicatas de webhook)
@@ -91,7 +89,13 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
 
   console.log(`[ProcessCart] Carrinho ${cart.id} criado no banco`)
 
-  // 5. Buscar templates ativos (ordenados por delay)
+  // 5. Só agendar mensagens se WhatsApp está conectado e há limite disponível
+  if (!canSendMessages) {
+    console.log(`[ProcessCart] ⚠️ Mensagens não serão agendadas (WhatsApp desconectado ou limite atingido)`)
+    return
+  }
+
+  // 6. Buscar templates ativos (ordenados por delay)
   const templates = await MessageTemplate.query()
     .where('tenant_id', data.tenantId)
     .where('trigger_type', 'abandoned_cart')
@@ -103,7 +107,7 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
     return
   }
 
-  // 6. Agendar mensagens para cada template
+  // 7. Agendar mensagens para cada template
   let scheduledCount = 0
 
   for (const template of templates) {
@@ -115,7 +119,7 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
       tenantId: data.tenantId,
       abandonedCartId: cart.id,
       messageTemplateId: template.id,
-      whatsappInstanceId: whatsapp.id,
+      whatsappInstanceId: whatsapp!.id,
       phoneNumber: data.customerPhone,
       content: '', // Será preenchido no momento do envio
       status: 'queued',
@@ -128,7 +132,7 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
         messageLogId: messageLog.id,
         cartId: cart.id,
         templateId: template.id,
-        whatsappInstanceId: whatsapp.id,
+        whatsappInstanceId: whatsapp!.id,
       },
       {
         delay: delayMs,
@@ -142,7 +146,7 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
     )
   }
 
-  // 7. Agendar verificação de recuperação (12h depois da última mensagem)
+  // 8. Agendar verificação de recuperação (12h depois da última mensagem)
   const lastTemplate = templates[templates.length - 1]
   const checkDelay = (lastTemplate.delayMinutes + 12 * 60) * 60 * 1000 // última mensagem + 12h
 
