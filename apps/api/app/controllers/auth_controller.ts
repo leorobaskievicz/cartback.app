@@ -78,9 +78,10 @@ export default class AuthController {
         { client: trx }
       )
 
-      const token = await User.accessTokens.create(user, ['*'], { expiresIn: '30 days' })
-
       await trx.commit()
+
+      // Criar token APÓS commit da transação para evitar lock timeout
+      const token = await User.accessTokens.create(user, ['*'], { expiresIn: '30 days' })
 
       return response.created({
         success: true,
