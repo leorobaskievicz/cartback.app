@@ -38,6 +38,7 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Key as KeyIcon,
+  Upgrade as UpgradeIcon,
 } from '@mui/icons-material'
 import { LoadingButton } from '@mui/lab'
 import { useAuth } from '../../contexts/AuthContext'
@@ -55,6 +56,7 @@ const menuItems = [
   { text: 'Templates', icon: <MessageIcon />, path: '/dashboard/templates' },
   { text: 'WhatsApp', icon: <WhatsAppIcon />, path: '/dashboard/whatsapp' },
   { text: 'Integrações', icon: <IntegrationIcon />, path: '/dashboard/integrations' },
+  { text: 'Planos', icon: <UpgradeIcon />, path: '/dashboard/plans' },
   { text: 'Configurações', icon: <SettingsIcon />, path: '/dashboard/settings' },
 ]
 
