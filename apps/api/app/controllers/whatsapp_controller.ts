@@ -151,20 +151,20 @@ export default class WhatsappController {
 
       await evolutionApiService.createInstance(instance.instanceName, {
         qrcode: true,
-        webhookUrl,
-        webhookByEvents: false,
-        webhookEvents: ['CONNECTION_UPDATE', 'QRCODE_UPDATED'],
-        // Configurações de privacidade e segurança
-        readMessages: false, // Não marcar mensagens como lidas
-        readStatus: false, // Não marcar status como visto
-        syncFullHistory: false, // Não sincronizar histórico
-        groupsIgnore: true, // Ignorar mensagens de grupos
-        rejectCall: false, // Não rejeitar chamadas (usuário decide)
-        alwaysOnline: false, // Não aparecer sempre online
       })
 
       console.log('✅ Instance created successfully')
-      console.log(`📡 Webhook URL: ${webhookUrl}`)
+
+      // 5. CONFIGURAR WEBHOOK (Evolution v2 requer configuração separada)
+      console.log(`📡 Setting webhook: ${webhookUrl}`)
+
+      await evolutionApiService.setWebhook(
+        instance.instanceName,
+        webhookUrl,
+        ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_SET', 'MESSAGES_UPDATE']
+      )
+
+      console.log('✅ Webhook configured')
       console.log('⏳ QR Code will be sent via webhook QRCODE_UPDATED')
 
       return response.ok({
