@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
@@ -23,25 +23,11 @@ RUN pnpm --filter @cartback/shared build
 WORKDIR /app/apps/api
 RUN node --import tsx ace.js build --ignore-ts-errors
 
-# Production stage
-FROM node:20-alpine
-
-WORKDIR /app
-
-# Copy workspace structure for module resolution
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/packages ./packages
-
-# Copy the built application
-COPY --from=base /app/apps/api/build ./apps/api/build
-
-WORKDIR /app/apps/api/build
-
-# Set NODE_PATH for module resolution
+# Set NODE_PATH so Node can find modules from /app/node_modules
 ENV NODE_PATH=/app/node_modules
 
 # Expose port
 EXPOSE 3333
 
-# Start the server
-CMD ["node", "bin/server.js"]
+# Start the server from the build directory
+CMD ["node", "build/bin/server.js"]
