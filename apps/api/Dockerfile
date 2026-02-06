@@ -23,11 +23,11 @@ RUN pnpm --filter @cartback/shared build
 WORKDIR /app/apps/api
 RUN node --import tsx ace.js build --ignore-ts-errors
 
-# Move to build directory
-WORKDIR /app/apps/api/build
+# Set NODE_PATH so Node can find modules from /app/node_modules
+ENV NODE_PATH=/app/node_modules
 
 # Expose port
 EXPOSE 3333
 
-# Start the server
-CMD ["node", "bin/server.js"]
+# Start the server from the build directory
+CMD ["node", "build/bin/server.js"]
