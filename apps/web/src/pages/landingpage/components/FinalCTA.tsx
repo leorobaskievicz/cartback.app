@@ -53,7 +53,7 @@ export default function FinalCTA() {
               fontWeight: 700,
               mb: 4,
               backgroundColor: "#FFFFFF",
-              color: #ffffff,
+              color: "#128C7E",
               "&:hover": {
                 backgroundColor: alpha("#FFFFFF", 0.9),
                 transform: "translateY(-2px)",

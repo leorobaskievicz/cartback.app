@@ -2,6 +2,8 @@ FROM node:20-alpine AS base
 
 # Build arguments (Railway will pass these from environment variables)
 ARG VITE_API_URL
+ARG CLOUDFLARE_ZONE_ID
+ARG CLOUDFLARE_API_TOKEN
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
@@ -25,6 +27,11 @@ RUN pnpm --filter @cartback/shared build
 # Build web (with env vars available for Vite)
 ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm --filter @cartback/web build
+
+# Purge Cloudflare cache after successful build
+ENV CLOUDFLARE_ZONE_ID=$CLOUDFLARE_ZONE_ID
+ENV CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN
+RUN node apps/web/scripts/purge-cloudflare.js || echo "Cloudflare purge skipped"
 
 # Production stage - Serve static files
 FROM nginx:alpine
