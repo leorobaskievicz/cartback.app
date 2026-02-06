@@ -22,29 +22,17 @@ RUN pnpm --filter @cartback/shared build
 # Build web
 RUN pnpm --filter @cartback/web build
 
-# Production stage
-FROM node:20-alpine
+# Production stage - Serve static files
+FROM nginx:alpine
 
-RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+# Copy built files from build stage
+COPY --from=base /app/apps/web/dist /usr/share/nginx/html
 
-WORKDIR /app
-
-# Copy workspace structure for module resolution
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/packages ./packages
-COPY --from=base /app/package.json ./package.json
-COPY --from=base /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-
-# Copy the built application
-COPY --from=base /app/apps/web ./apps/web
-
-WORKDIR /app/apps/web
-
-# Set NODE_PATH for module resolution
-ENV NODE_PATH=/app/node_modules
+# Copy nginx configuration
+COPY --from=base /app/apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
-# Start the preview server
-CMD sh -c "pnpm run preview -- --host 0.0.0.0 --port ${PORT:-3000}"
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
