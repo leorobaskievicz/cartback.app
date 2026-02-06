@@ -40,6 +40,9 @@ WORKDIR /app/apps/api/build
 # Set NODE_PATH for module resolution
 ENV NODE_PATH=/app/node_modules
 
+# Debug: List files to verify structure
+RUN ls -la /app/node_modules/reflect-metadata || echo "reflect-metadata not found in /app/node_modules"
+
 # Expose port
 EXPOSE 3333
 
