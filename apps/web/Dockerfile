@@ -31,6 +31,9 @@ COPY --from=base /app/apps/web/dist /usr/share/nginx/html
 # Copy nginx configuration template
 COPY --from=base /app/apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 
+# Set default PORT (Railway will override this)
+ENV PORT=80
+
 # Expose port (Railway uses $PORT env var)
 EXPOSE 80
 
