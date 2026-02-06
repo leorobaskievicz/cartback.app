@@ -1,5 +1,8 @@
 FROM node:20-alpine AS base
 
+# Build arguments (Railway will pass these from environment variables)
+ARG VITE_API_URL
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
@@ -19,7 +22,8 @@ RUN pnpm install --frozen-lockfile
 # Build shared package
 RUN pnpm --filter @cartback/shared build
 
-# Build web
+# Build web (with env vars available for Vite)
+ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm --filter @cartback/web build
 
 # Production stage - Serve static files
