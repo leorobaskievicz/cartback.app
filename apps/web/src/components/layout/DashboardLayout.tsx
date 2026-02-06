@@ -50,12 +50,12 @@ import Logo from '../common/Logo'
 const DRAWER_WIDTH = 260
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Carrinhos', icon: <CartIcon />, path: '/carts' },
-  { text: 'Templates', icon: <MessageIcon />, path: '/templates' },
-  { text: 'WhatsApp', icon: <WhatsAppIcon />, path: '/whatsapp' },
-  { text: 'Integrações', icon: <IntegrationIcon />, path: '/integrations' },
-  { text: 'Configurações', icon: <SettingsIcon />, path: '/settings' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Carrinhos', icon: <CartIcon />, path: '/dashboard/carts' },
+  { text: 'Templates', icon: <MessageIcon />, path: '/dashboard/templates' },
+  { text: 'WhatsApp', icon: <WhatsAppIcon />, path: '/dashboard/whatsapp' },
+  { text: 'Integrações', icon: <IntegrationIcon />, path: '/dashboard/integrations' },
+  { text: 'Configurações', icon: <SettingsIcon />, path: '/dashboard/settings' },
 ]
 
 export default function DashboardLayout() {
