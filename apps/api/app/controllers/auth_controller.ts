@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import Tenant from '#models/tenant'
+import Subscription from '#models/subscription'
 import MessageTemplate from '#models/message_template'
 import { registerValidator, loginValidator } from '#validators/auth'
 import { DateTime } from 'luxon'
@@ -37,6 +38,25 @@ export default class AuthController {
           password: data.password,
           name: data.name,
           role: 'owner',
+        },
+        { client: trx }
+      )
+
+      // Criar subscription trial
+      const trialEndsAt = DateTime.now().plus({ days: 14 })
+      await Subscription.create(
+        {
+          tenantId: tenant.id,
+          plan: 'trial',
+          status: 'trial',
+          paymentGateway: null,
+          externalSubscriptionId: null,
+          externalCustomerId: null,
+          currentPeriodStart: DateTime.now(),
+          currentPeriodEnd: trialEndsAt,
+          messagesLimit: 100, // Trial: 100 mensagens
+          messagesUsed: 0,
+          trialEndsAt,
         },
         { client: trx }
       )
