@@ -60,14 +60,12 @@ class EvolutionApiService {
     instanceName: string,
     options?: Partial<CreateInstanceOptions>
   ): Promise<CreateInstanceResponse> {
-    const payload: any = {
+    const payload: CreateInstanceOptions = {
       instanceName,
       qrcode: true,
+      integration: 'WHATSAPP-BAILEYS',
       ...options,
     }
-
-    // Remover integration se presente (não suportado na v2)
-    delete payload.integration
 
     const response = await this.client.post<CreateInstanceResponse>('/instance/create', payload)
     return response.data
