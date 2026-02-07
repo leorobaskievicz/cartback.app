@@ -107,7 +107,7 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
   const finalMessage = replacePlaceholders(template.content, {
     nome: cart.customerName || 'Cliente',
     produtos: formatProducts(cart.items || []),
-    link: cart.cartUrl || '',
+    link: cart.cartUrl || '[Link não disponível]',
     total: formatCurrency(cart.totalValue || 0),
   })
 
