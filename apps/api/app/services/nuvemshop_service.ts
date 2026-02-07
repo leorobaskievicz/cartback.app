@@ -17,7 +17,7 @@ interface NuvemshopTokens {
  */
 interface NuvemshopStore {
   id: number
-  name: string
+  name: string | { pt?: string; es?: string; en?: string } // Pode vir como string ou objeto multilíngue
   description: string
   url_with_protocol: string
   main_currency: string
