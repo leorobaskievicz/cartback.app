@@ -40,6 +40,8 @@ export default class RateLimiterService {
     }
 
     // 3. Verificar se está dentro do horário permitido
+    // ⚠️ TEMPORARIAMENTE DESABILITADO - Permitir envios 24/7
+    /*
     if (!config.isWithinAllowedHours()) {
       const now = new Date()
       const currentTime = now.getHours() * 60 + now.getMinutes()
@@ -55,8 +57,11 @@ export default class RateLimiterService {
         retryAfter: minutesUntilStart * 60,
       }
     }
+    */
 
     // 4. Verificar se quality está muito baixa
+    // ⚠️ TEMPORARIAMENTE DESABILITADO - Não bloquear por qualidade
+    /*
     if (config.autoPauseOnLowQuality && metrics.qualityRating === 'flagged') {
       return {
         allowed: false,
@@ -64,6 +69,7 @@ export default class RateLimiterService {
           'Envios pausados automaticamente devido à qualidade crítica. Aguarde melhoria do score.',
       }
     }
+    */
 
     // 5. Verificar limite por minuto
     const maxPerMinute = config.getEffectiveMaxPerMinute(

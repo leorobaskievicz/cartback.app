@@ -51,7 +51,8 @@ export default function PaymentDialog({ open, payment, onClose }: PaymentDialogP
                 <Typography
                   variant="body2"
                   sx={{
-                    bgcolor: 'grey.100',
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+                    color: (theme) => theme.palette.mode === 'dark' ? 'grey.100' : 'grey.900',
                     p: 1,
                     borderRadius: 1,
                     maxWidth: 300,

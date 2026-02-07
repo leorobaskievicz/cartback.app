@@ -117,7 +117,7 @@ export default class DashboardController {
 
     // Adicionar carrinhos
     cartsByDay.forEach((row: any) => {
-      const date = row.date
+      const date = String(row.date)
       if (!chartData[date]) {
         chartData[date] = { date, carts: 0, recovered: 0, messages: 0 }
       }
@@ -126,7 +126,7 @@ export default class DashboardController {
 
     // Adicionar recuperações
     recoveriesByDay.forEach((row: any) => {
-      const date = row.date
+      const date = String(row.date)
       if (!chartData[date]) {
         chartData[date] = { date, carts: 0, recovered: 0, messages: 0 }
       }
@@ -135,7 +135,7 @@ export default class DashboardController {
 
     // Adicionar mensagens
     messagesByDay.forEach((row: any) => {
-      const date = row.date
+      const date = String(row.date)
       if (!chartData[date]) {
         chartData[date] = { date, carts: 0, recovered: 0, messages: 0 }
       }
@@ -143,7 +143,7 @@ export default class DashboardController {
     })
 
     // Converter para array e ordenar por data
-    const chartArray = Object.values(chartData).sort((a, b) => a.date.localeCompare(b.date))
+    const chartArray = Object.values(chartData).sort((a, b) => String(a.date).localeCompare(String(b.date)))
 
     return response.ok({
       success: true,
