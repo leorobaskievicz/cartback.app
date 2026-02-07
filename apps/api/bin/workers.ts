@@ -26,12 +26,28 @@ try {
         const { default: processAbandonedCart } = await import('#jobs/process_abandoned_cart')
         const { default: sendWhatsAppMessage } = await import('#jobs/send_whatsapp_message')
         const { default: checkCartRecovered } = await import('#jobs/check_cart_recovered')
+        const { pollNuvemshopAbandonedCarts } = await import(
+          '#jobs/poll_nuvemshop_abandoned_carts'
+        )
 
         queueService.registerWorker('process-abandoned-cart', processAbandonedCart)
         queueService.registerWorker('send-whatsapp-message', sendWhatsAppMessage)
         queueService.registerWorker('check-cart-recovered', checkCartRecovered)
+        queueService.registerWorker('poll-nuvemshop-carts', pollNuvemshopAbandonedCarts)
+
+        // Agendar polling de carrinhos Nuvemshop 2x por dia (backup)
+        // Script JavaScript no checkout detecta em tempo real
+        await queueService.addRepeatingJob(
+          'poll-nuvemshop-carts',
+          {},
+          {
+            pattern: '0 6,18 * * *', // Às 6h e 18h (backup)
+            jobId: 'poll-nuvemshop',
+          }
+        )
 
         console.log('✅ Workers initialized and running')
+        console.log('🔄 Polling Nuvemshop: 2x/dia às 6h e 18h (backup)')
 
         // Handle graceful shutdown
         process.on('SIGTERM', async () => {

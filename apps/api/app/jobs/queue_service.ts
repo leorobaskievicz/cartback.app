@@ -96,6 +96,30 @@ class QueueService {
   }
 
   /**
+   * Adiciona um job recorrente (cron)
+   *
+   * @param pattern - Padrão cron (ex: "*/15 * * * *" = a cada 15 minutos)
+   */
+  async addRepeatingJob(
+    queueName: string,
+    data: any,
+    options: { pattern: string; jobId?: string }
+  ): Promise<void> {
+    const queue = this.getQueue(queueName)
+
+    await queue.add(queueName, data, {
+      repeat: {
+        pattern: options.pattern,
+      },
+      jobId: options.jobId,
+      removeOnComplete: 10,
+      removeOnFail: 10,
+    })
+
+    console.log(`🔄 Job recorrente criado: ${queueName} (${options.pattern})`)
+  }
+
+  /**
    * Remove um job específico da fila
    */
   async removeJob(queueName: string, jobId: string): Promise<void> {
