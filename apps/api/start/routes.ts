@@ -32,6 +32,14 @@ router.get('/health', async () => {
   }
 })
 
+// Serve Nuvemshop script
+router.get('/nuvemshop-cart-tracker.js', async ({ response }: any) => {
+  return response.download('public/nuvemshop-cart-tracker.js', {
+    'Content-Type': 'application/javascript',
+    'Cache-Control': 'public, max-age=3600',
+  })
+})
+
 // Test endpoint
 router.get('/api/test/controller', async ({ response }: any) => {
   console.log('🧪 Test endpoint called')
