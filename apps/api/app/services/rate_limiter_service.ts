@@ -138,6 +138,8 @@ export default class RateLimiterService {
     }
 
     // 9. Verificar se está em warm-up e respeitando limites progressivos
+    // ⚠️ TEMPORARIAMENTE DESABILITADO - Não bloquear por warm-up
+    /*
     if (metrics.isWarmingUp) {
       const maxDailyForCurrentDay = this.getWarmupDailyLimit(
         metrics.daysSinceConnection,
@@ -154,8 +156,11 @@ export default class RateLimiterService {
         }
       }
     }
+    */
 
     // 10. Verificar taxa de falhas recentes
+    // ⚠️ TEMPORARIAMENTE DESABILITADO - Não bloquear por taxa de falha
+    /*
     const failureRate = metrics.getFailureRate()
     if (failureRate > 30) {
       return {
@@ -163,6 +168,7 @@ export default class RateLimiterService {
         reason: `Taxa de falha muito alta (${failureRate}%). Verifique conexão e números.`,
       }
     }
+    */
 
     // Tudo OK!
     return { allowed: true }
