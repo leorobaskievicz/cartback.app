@@ -311,8 +311,16 @@ export default function Templates() {
                   </Paper>
 
                   <Box sx={{ mt: 2 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Variáveis disponíveis: {'{{nome}}, {{produtos}}, {{link}}, {{total}}'}
+                    <Typography variant="caption" color="text.secondary" component="div">
+                      <strong>Variáveis (use chaves duplas):</strong>
+                      <br />
+                      • {'{{'}<strong>nome</strong>{'}}'}  → Nome do cliente
+                      <br />
+                      • {'{{'}<strong>produtos</strong>{'}}'}  → Itens do carrinho
+                      <br />
+                      • {'{{'}<strong>link</strong>{'}}'}  → Link para finalizar compra
+                      <br />
+                      • {'{{'}<strong>total</strong>{'}}'}  → Valor total (R$)
                     </Typography>
                   </Box>
                 </CardContent>
@@ -372,7 +380,7 @@ export default function Templates() {
             value={formData.content}
             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
             required
-            helperText="Use {{nome}}, {{produtos}}, {{link}}, {{total}} para personalizar"
+            helperText="Use CHAVES DUPLAS: {{nome}}, {{produtos}}, {{link}}, {{total}} (nunca use {nome} com chaves simples!)"
           />
           <TextField
             label="Enviar após (minutos)"
