@@ -107,3 +107,6 @@ export async function pollNuvemshopAbandonedCarts(job: Job): Promise<void> {
     `[Poll Nuvemshop] ✅ Concluído: ${totalCartsFound} carrinhos encontrados, ${totalCartsQueued} adicionados à fila`
   )
 }
+
+// Export default para compatibilidade com workers.ts
+export default pollNuvemshopAbandonedCarts

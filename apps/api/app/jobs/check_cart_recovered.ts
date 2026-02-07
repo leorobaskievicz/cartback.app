@@ -86,3 +86,5 @@ export async function checkCartRecovered(job: Job<CheckCartData>): Promise<void>
   //   await queueService.removeCartJobs(cart.id) // Cancelar mensagens pendentes
   // }
 }
+
+export default checkCartRecovered

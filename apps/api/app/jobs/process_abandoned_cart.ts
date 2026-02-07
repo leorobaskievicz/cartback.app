@@ -166,3 +166,5 @@ export async function processAbandonedCart(job: Job<ProcessCartData>): Promise<v
     `[ProcessCart] ✅ Carrinho ${cart.id} processado com sucesso: ${scheduledCount} mensagens agendadas`
   )
 }
+
+export default processAbandonedCart

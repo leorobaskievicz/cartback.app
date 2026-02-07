@@ -236,3 +236,5 @@ function formatCurrency(value: number): string {
     currency: 'BRL',
   })
 }
+
+export default sendWhatsappMessage
