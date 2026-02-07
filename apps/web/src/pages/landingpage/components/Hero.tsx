@@ -141,38 +141,37 @@ export default function Hero() {
             </Button>
           </Box>
 
-          {/* Mockup/Screenshot Placeholder */}
+          {/* Dashboard Screenshot */}
           <Box
             sx={{
               width: '100%',
-              maxWidth: '900px',
+              maxWidth: '1100px',
               mx: 'auto',
-              borderRadius: 4,
+              borderRadius: 3,
               overflow: 'hidden',
               boxShadow: isDark
-                ? '0 20px 60px rgba(0, 0, 0, 0.5)'
-                : '0 20px 60px rgba(0, 0, 0, 0.15)',
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              background: isDark
-                ? alpha('#1A1A2E', 0.6)
-                : alpha('#FFFFFF', 0.8),
-              backdropFilter: 'blur(10px)',
+                ? '0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                : '0 30px 80px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+              transform: 'perspective(1000px) rotateX(2deg)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'perspective(1000px) rotateX(0deg) translateY(-4px)',
+                boxShadow: isDark
+                  ? '0 40px 100px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08)'
+                  : '0 40px 100px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+              },
             }}
           >
             <Box
+              component="img"
+              src="/assets/dashboard-preview.png"
+              alt="CartBack Dashboard - Recuperação de Carrinhos Abandonados"
               sx={{
-                aspectRatio: '16/9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: theme.palette.gradient.primary,
-                opacity: 0.1,
+                width: '100%',
+                height: 'auto',
+                display: 'block',
               }}
-            >
-              <Typography variant="h4" color="text.secondary">
-                [Dashboard Screenshot]
-              </Typography>
-            </Box>
+            />
           </Box>
         </Box>
       </Container>
