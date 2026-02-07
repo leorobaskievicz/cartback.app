@@ -26,7 +26,7 @@ try {
         const { default: processAbandonedCart } = await import('#jobs/process_abandoned_cart')
         const { default: sendWhatsAppMessage } = await import('#jobs/send_whatsapp_message')
         const { default: checkCartRecovered } = await import('#jobs/check_cart_recovered')
-        const { pollNuvemshopAbandonedCarts } = await import(
+        const { default: pollNuvemshopAbandonedCarts } = await import(
           '#jobs/poll_nuvemshop_abandoned_carts'
         )
 

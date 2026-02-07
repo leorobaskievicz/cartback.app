@@ -4,7 +4,7 @@ import env from '#start/env'
 
 /**
  * Gerenciador central de filas com BullMQ
- * Centraliza a criação de queues e workers
+ * Centraliza a criacao de queues e workers
  */
 class QueueService {
   private connection: IORedis
@@ -24,12 +24,12 @@ class QueueService {
     })
 
     this.connection.on('connect', () => {
-      console.log('✅ Redis connected for BullMQ')
+      console.log('  Redis connected for BullMQ')
     })
   }
 
   /**
-   * Obtém ou cria uma fila
+   * Obtem ou cria uma fila
    */
   getQueue(name: string): Queue {
     if (!this.queues.has(name)) {
@@ -44,7 +44,7 @@ class QueueService {
    */
   registerWorker(name: string, processor: (job: Job) => Promise<void>): void {
     if (this.workers.has(name)) {
-      console.warn(`Worker ${name} já registrado, ignorando`)
+      console.warn(`Worker ${name} ja registrado, ignorando`)
       return
     }
 
@@ -56,23 +56,23 @@ class QueueService {
     })
 
     worker.on('completed', (job) => {
-      console.log(`✅ [${name}] Job ${job.id} completed`)
+      console.log(`  [${name}] Job ${job.id} completed`)
     })
 
     worker.on('failed', (job, err) => {
-      console.error(`❌ [${name}] Job ${job?.id} failed:`, err.message)
+      console.error(`[${name}] Job ${job?.id} failed:`, err.message)
     })
 
     worker.on('error', (err) => {
-      console.error(`❌ [${name}] Worker error:`, err)
+      console.error(`[${name}] Worker error:`, err)
     })
 
     this.workers.set(name, worker)
-    console.log(`✅ Worker registered: ${name}`)
+    console.log(`  Worker registered: ${name}`)
   }
 
   /**
-   * Adiciona um job à fila
+   * Adiciona um job a fila
    */
   async addJob(
     queueName: string,
@@ -95,32 +95,23 @@ class QueueService {
     })
   }
 
-  /**
-   * Adiciona um job recorrente (cron)
-   *
-   * @param pattern - Padrão cron (ex: "*/15 * * * *" = a cada 15 minutos)
-   */
   async addRepeatingJob(
     queueName: string,
     data: any,
     options: { pattern: string; jobId?: string }
   ): Promise<void> {
     const queue = this.getQueue(queueName)
-
     await queue.add(queueName, data, {
-      repeat: {
-        pattern: options.pattern,
-      },
+      repeat: { pattern: options.pattern },
       jobId: options.jobId,
       removeOnComplete: 10,
       removeOnFail: 10,
     })
-
-    console.log(`🔄 Job recorrente criado: ${queueName} (${options.pattern})`)
+    console.log(`Job recorrente criado: ${queueName} (${options.pattern})`)
   }
 
   /**
-   * Remove um job específico da fila
+   * Remove um job especifico da fila
    */
   async removeJob(queueName: string, jobId: string): Promise<void> {
     const queue = this.getQueue(queueName)
@@ -128,7 +119,7 @@ class QueueService {
 
     if (job) {
       await job.remove()
-      console.log(`🗑️  Job ${jobId} removido da fila ${queueName}`)
+      console.log(`   Job ${jobId} removido da fila ${queueName}`)
     }
   }
 
@@ -143,24 +134,24 @@ class QueueService {
     for (const job of sendJobs) {
       if (job.data.cartId === cartId) {
         await job.remove()
-        console.log(`🗑️  Job de envio ${job.id} removido (carrinho ${cartId})`)
+        console.log(`   Job de envio ${job.id} removido (carrinho ${cartId})`)
       }
     }
 
-    // Remove job de verificação
+    // Remove job de verificacao
     const checkQueue = this.getQueue('check-cart-recovered')
     const checkJobs = await checkQueue.getJobs(['waiting', 'delayed'])
 
     for (const job of checkJobs) {
       if (job.data.cartId === cartId) {
         await job.remove()
-        console.log(`🗑️  Job de verificação ${job.id} removido (carrinho ${cartId})`)
+        console.log(`   Job de verificacao ${job.id} removido (carrinho ${cartId})`)
       }
     }
   }
 
   /**
-   * Obtém estatísticas de uma fila
+   * Obtem estatisticas de uma fila
    */
   async getQueueStats(queueName: string) {
     const queue = this.getQueue(queueName)
@@ -184,26 +175,26 @@ class QueueService {
   }
 
   /**
-   * Fecha todas as conexões (chamado no shutdown)
+   * Fecha todas as conexoes (chamado no shutdown)
    */
   async shutdown(): Promise<void> {
-    console.log('🔄 Fechando workers...')
+    console.log('  Fechando workers...')
 
     for (const [name, worker] of this.workers.entries()) {
       await worker.close()
-      console.log(`✅ Worker ${name} fechado`)
+      console.log(`  Worker ${name} fechado`)
     }
 
-    console.log('🔄 Fechando filas...')
+    console.log('  Fechando filas...')
 
     for (const [name, queue] of this.queues.entries()) {
       await queue.close()
-      console.log(`✅ Fila ${name} fechada`)
+      console.log(`  Fila ${name} fechada`)
     }
 
-    console.log('🔄 Fechando conexão Redis...')
+    console.log('  Fechando conexao Redis...')
     await this.connection.quit()
-    console.log('✅ Redis desconectado')
+    console.log('  Redis desconectado')
   }
 }
 
