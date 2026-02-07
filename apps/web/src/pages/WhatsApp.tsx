@@ -354,6 +354,8 @@ export default function WhatsApp() {
       </Card>
 
       {/* Health Metrics - Só aparece quando conectado */}
+      {/* ⚠️ TEMPORARIAMENTE DESABILITADO - Ocultar indicadores de qualidade */}
+      {/*
       {instance?.status === 'connected' && healthMetrics && (
         <Box sx={{ mt: 4 }}>
           <Box sx={{ mb: 3 }}>
@@ -366,7 +368,6 @@ export default function WhatsApp() {
           </Box>
 
           <Grid container spacing={3}>
-            {/* Health Score */}
             <Grid item xs={12} md={6}>
               <HealthScoreCard
                 score={healthMetrics.health.score}
@@ -377,7 +378,6 @@ export default function WhatsApp() {
               />
             </Grid>
 
-            {/* Tier Usage */}
             <Grid item xs={12} md={6}>
               <TierUsageCard
                 current={healthMetrics.tier.current}
@@ -388,12 +388,10 @@ export default function WhatsApp() {
               />
             </Grid>
 
-            {/* Alerts */}
             <Grid item xs={12}>
               <AlertsList alerts={healthMetrics.alerts} />
             </Grid>
 
-            {/* Quality Metrics */}
             <Grid item xs={12}>
               <QualityMetricsGrid
                 deliveryRate={healthMetrics.quality.deliveryRate}
@@ -411,7 +409,6 @@ export default function WhatsApp() {
             </Grid>
           </Grid>
 
-          {/* Last Update */}
           {healthMetrics.lastUpdate && (
             <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="caption" color="text.secondary">
@@ -421,6 +418,7 @@ export default function WhatsApp() {
           )}
         </Box>
       )}
+      */}
 
       <ConfirmDialog
         open={confirmOpen}
