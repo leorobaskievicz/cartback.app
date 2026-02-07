@@ -95,7 +95,14 @@ export default class StoreIntegrationsController {
       // Buscar informações da loja
       const storeInfo = await nuvemshopService.getStoreInfo(tokens.user_id, tokens.access_token)
 
-      console.log(`[Nuvemshop Callback] Loja: ${storeInfo.name}`)
+      // Extrair nome da loja (pode vir como objeto multilíngue ou string)
+      let storeName = storeInfo.name
+      if (typeof storeName === 'object' && storeName !== null) {
+        // Se for objeto, pega o primeiro idioma disponível (pt, es, en)
+        storeName = (storeName as any).pt || (storeName as any).es || (storeName as any).en || 'Loja'
+      }
+
+      console.log(`[Nuvemshop Callback] Loja: ${storeName}`)
 
       // Criar ou atualizar integração
       const integration = await StoreIntegration.updateOrCreate(
@@ -105,7 +112,7 @@ export default class StoreIntegrationsController {
         },
         {
           storeId: String(tokens.user_id),
-          storeName: storeInfo.name,
+          storeName: storeName as string,
           storeUrl: storeInfo.url_with_protocol,
           accessToken: tokens.access_token, // TODO: Encriptar em produção
           isActive: true,
