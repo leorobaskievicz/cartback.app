@@ -12,6 +12,7 @@ const AbandonedCartsController = () => import('#controllers/abandoned_carts_cont
 const DashboardController = () => import('#controllers/dashboard_controller')
 const PlansController = () => import('#controllers/plans_controller')
 const NuvemshopWebhookController = () => import('#controllers/webhooks/nuvemshop_webhook_controller')
+const NuvemshopScriptWebhookController = () => import('#controllers/webhooks/nuvemshop_script_webhook_controller')
 const AsaasWebhookController = () => import('#controllers/webhooks/asaas_webhook_controller')
 const CustomWebhookController = () => import('#controllers/webhooks/custom_webhook_controller')
 
@@ -51,6 +52,7 @@ router
   .group(() => {
     router.post('/nuvemshop/:tenantUuid', [NuvemshopWebhookController, 'abandonedCart'])
     router.post('/nuvemshop/:tenantUuid/order', [NuvemshopWebhookController, 'orderCreated'])
+    router.post('/nuvemshop-script/:tenantUuid', [NuvemshopScriptWebhookController, 'handle'])
     router.post('/custom/:tenantUuid', [CustomWebhookController, 'receive'])
     router.post('/custom/:tenantUuid/order', [CustomWebhookController, 'orderCreated'])
     router.get('/custom/docs', [CustomWebhookController, 'docs'])

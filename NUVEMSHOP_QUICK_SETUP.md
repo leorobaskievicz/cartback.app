@@ -7,11 +7,12 @@ Guia direto e objetivo para ativar a integração Nuvemshop no CartBack em produ
 ## 📋 Checklist Rápido
 
 - [ ] Criar app no Partners Portal
+- [ ] Criar script no Partners Portal (IMPORTANTE!)
 - [ ] Configurar URLs de callback
-- [ ] Copiar credenciais (App ID e Secret)
+- [ ] Copiar credenciais (App ID, Secret, Script ID)
 - [ ] Configurar variáveis no Railway
 - [ ] Testar conexão
-- [ ] Validar webhooks
+- [ ] Validar script funcionando
 
 ---
 
@@ -62,30 +63,63 @@ App Secret: abc123def456xyz789...
 
 ---
 
-## ⚙️ Passo 2: Configurar Variáveis no Railway
+## 🎯 Passo 2: Criar Script no Partners Portal
 
-### 2.1 Acessar Service cartback-api
+⚡ **IMPORTANTE:** O script detecta carrinhos abandonados em **tempo real** (1-5 segundos)!
+
+### 2.1 Criar Script
+
+1. No mesmo painel do app, vá em **"Scripts"**
+2. Clique em **"Criar script"**
+3. Preencha:
+
+```
+Nome: CartBack - Abandoned Cart Detector
+Handle: cartback-cart-tracker
+Where: ✅ checkout (APENAS checkout!)
+Event: ✅ onload
+Script URL: https://api.cartback.app/nuvemshop-cart-tracker.js
+Auto installed: ✅ Sim
+```
+
+4. **Publicar** o script (Draft → Testing → Active)
+
+### 2.2 Obter Script ID
+
+Após criar, você verá um ID (ex: `12345`).
+
+**GUARDE ESSE ID!**
+
+> 📚 **Guia completo:** Veja `NUVEMSHOP_SCRIPT_SETUP.md` para detalhes técnicos
+
+---
+
+## ⚙️ Passo 3: Configurar Variáveis no Railway
+
+### 3.1 Acessar Service cartback-api
 
 1. Acesse https://railway.app
 2. Abra seu projeto **CartBack**
 3. Clique no service **cartback-api**
 4. Vá em **Variables**
 
-### 2.2 Adicionar/Editar Variáveis
+### 3.2 Adicionar/Editar Variáveis
 
-Adicione estas 3 variáveis:
+Adicione estas 4 variáveis:
 
 ```bash
 NUVEMSHOP_APP_ID=12345
 NUVEMSHOP_APP_SECRET=abc123def456xyz789...
+NUVEMSHOP_SCRIPT_ID=67890
 NUVEMSHOP_CALLBACK_URL=https://api.cartback.app/api/integrations/nuvemshop/callback
 ```
 
 **Substitua:**
-- `12345` → Seu App ID
-- `abc123...` → Seu App Secret
+- `12345` → Seu App ID (Passo 1)
+- `abc123...` → Seu App Secret (Passo 1)
+- `67890` → Seu Script ID (Passo 2)
 
-### 2.3 Verificar Outras Variáveis
+### 3.3 Verificar Outras Variáveis
 
 Certifique-se que também tem:
 
@@ -141,29 +175,38 @@ Deve aparecer:
 
 ## 🎉 Pronto! Agora o Que Acontece?
 
-### Webhooks Configurados Automaticamente
+⚡ **O CartBack detecta carrinhos abandonados em TEMPO REAL!**
 
-O CartBack criou 2 webhooks na sua loja:
+O CartBack usa **abordagem híbrida** (script + backup):
 
-#### 1. Carrinho Abandonado
-```
-Evento: cart/abandoned
-URL: https://api.cartback.app/api/webhooks/nuvemshop/{seu-uuid}
-```
+### 1. Script JavaScript (Tempo Real) ⚡ PRIMÁRIO
 
-**Quando dispara:**
-- Cliente adiciona produtos ao carrinho
-- Cliente preenche dados no checkout (incluindo telefone!)
-- Cliente **NÃO finaliza** a compra
-- Após **3-15 minutos**, Nuvemshop envia o webhook
+**Detecta abandono em 1-5 segundos!**
 
-**O que o CartBack faz:**
-1. Recebe os dados do carrinho
-2. Valida assinatura HMAC
-3. Salva carrinho no banco
-4. Agenda mensagens WhatsApp conforme seus templates
+- Script roda no checkout da Nuvemshop
+- Monitora campos: nome, email, telefone
+- Detecta quando cliente sai sem finalizar
+- Envia dados instantaneamente via webhook
+- **Taxa de captura: ~95%**
 
-#### 2. Pedido Criado
+**Como funciona:**
+- Cliente preenche checkout → Script detecta `beforeunload` → Envia para CartBack → Mensagem enviada em ~1 min
+
+### 2. Polling API (Backup) 🔄 SECUNDÁRIO
+
+**Pega carrinhos que o script perdeu (2x/dia às 6h e 18h)**
+
+- CartBack busca via API REST
+- Carrinhos abandonados das últimas 24h
+- Casos: JS bloqueado, aba fechada muito rápido
+- **Taxa de captura adicional: ~5%**
+
+**Por que é backup?**
+- Nuvemshop cria abandoned checkout até 6h depois
+- Polling garante 100% de cobertura
+
+### 3. Webhook de Pedido Criado (Recuperação) ✅
+
 ```
 Evento: order/created
 URL: https://api.cartback.app/api/webhooks/nuvemshop/{seu-uuid}/order
@@ -176,26 +219,46 @@ URL: https://api.cartback.app/api/webhooks/nuvemshop/{seu-uuid}/order
 1. Busca carrinhos abandonados desse cliente (por telefone/email)
 2. Marca como "recuperado"
 3. Cancela mensagens agendadas
-4. Atualiza métricas
+4. Atualiza métricas de recuperação
 
 ---
 
 ## 📊 Como Funciona o Fluxo Completo
 
+### Cenário 1: Detecção via Script (95% dos casos) ⚡
+
 ```
-1. Cliente abandona carrinho na Nuvemshop
+1. Cliente preenche checkout e abandona
    ↓
-2. Nuvemshop envia webhook para CartBack (3-15 min)
+2. Script detecta beforeunload (instantâneo)
    ↓
-3. CartBack salva carrinho e agenda mensagens
+3. Script envia para /api/webhooks/nuvemshop-script/{uuid}
    ↓
-4. WhatsApp envia mensagens nos horários configurados (1min, 30min, 24h, 48h)
+4. CartBack salva carrinho (1-5 segundos)
    ↓
-5. Cliente clica no link e finaliza compra
+5. Agenda mensagens WhatsApp conforme templates
    ↓
-6. Nuvemshop envia webhook de pedido criado
+6. Cliente recebe primeira mensagem em ~1 minuto! ⚡
    ↓
-7. CartBack marca carrinho como recuperado e cancela próximas mensagens
+7. Cliente clica no link e finaliza compra
+   ↓
+8. Nuvemshop envia webhook order/created
+   ↓
+9. CartBack marca como recuperado e cancela próximas mensagens
+```
+
+### Cenário 2: Detecção via Polling (5% dos casos - backup) 🔄
+
+```
+1. Cliente abandona (JS bloqueado ou fechou muito rápido)
+   ↓
+2. Nuvemshop cria abandoned checkout (até 6h depois)
+   ↓
+3. CartBack faz polling 2x/dia (6h e 18h)
+   ↓
+4. Encontra carrinho → processa → agenda mensagens
+   ↓
+5. [Mesmo fluxo do cenário 1 a partir daqui]
 ```
 
 ---
@@ -216,15 +279,21 @@ URL: https://api.cartback.app/api/webhooks/nuvemshop/{seu-uuid}/order
    - CEP: 80000-000
 5. **NÃO finalize** a compra - apenas feche a aba
 
-**2. Aguardar (3-15 minutos)**
+**2. Abrir DevTools (F12)**
 
-A Nuvemshop tem um delay antes de enviar o webhook.
+Enquanto ainda estiver no checkout:
+- Console deve mostrar: `[CartBack] Script iniciado - Tenant: abc-123`
+- Console deve mostrar: `[CartBack] Monitorando X campos`
 
-**3. Verificar no CartBack:**
+**3. Fechar a aba (simula abandono)**
+
+Isso dispara o script!
+
+**4. Verificar no CartBack (IMEDIATO!):**
 
 1. Acesse https://cartback.app
 2. Vá em **Carrinhos**
-3. Deve aparecer:
+3. Carrinho deve aparecer em **1-5 segundos**! ⚡
    ```
    Teste CartBack
    41999261087
@@ -232,7 +301,7 @@ A Nuvemshop tem um delay antes de enviar o webhook.
    [X] produto(s)
    ```
 
-**4. Verificar WhatsApp:**
+**5. Verificar WhatsApp:**
 
 Você deve receber a primeira mensagem no seu WhatsApp em ~1 minuto!
 

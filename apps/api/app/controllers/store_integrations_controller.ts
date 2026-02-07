@@ -122,18 +122,13 @@ export default class StoreIntegrationsController {
 
       console.log(`[Nuvemshop Callback] Integração salva (ID: ${integration.id})`)
 
-      // Configurar webhooks
+      // Configurar webhook de pedido criado (para detectar recuperação)
+      // NOTA: Nuvemshop NÃO tem webhook de carrinho abandonado!
+      // Carrinhos abandonados são obtidos via polling da API (job separado)
       const appUrl = env.get('APP_URL', 'http://localhost:3333')
-      const webhookCartUrl = `${appUrl}/api/webhooks/nuvemshop/${tenant.uuid}`
       const webhookOrderUrl = `${appUrl}/api/webhooks/nuvemshop/${tenant.uuid}/order`
 
-      console.log('[Nuvemshop Callback] Configurando webhooks...')
-
-      await nuvemshopService.createAbandonedCartWebhook(
-        tokens.user_id,
-        tokens.access_token,
-        webhookCartUrl
-      )
+      console.log('[Nuvemshop Callback] Configurando webhook order/created...')
 
       await nuvemshopService.createOrderWebhook(
         tokens.user_id,
@@ -141,7 +136,39 @@ export default class StoreIntegrationsController {
         webhookOrderUrl
       )
 
-      console.log('[Nuvemshop Callback] Webhooks configurados com sucesso!')
+      console.log('[Nuvemshop Callback] Webhook configurado com sucesso!')
+
+      // Associar script JavaScript para detecção em tempo real
+      const scriptId = env.get('NUVEMSHOP_SCRIPT_ID')
+
+      if (scriptId) {
+        console.log('[Nuvemshop Callback] Associando script de detecção de abandono...')
+
+        try {
+          await nuvemshopService.associateScript(
+            tokens.user_id,
+            tokens.access_token,
+            scriptId,
+            {
+              tenant_uuid: tenant.uuid, // Passa UUID para o script saber qual tenant é
+            }
+          )
+
+          console.log('[Nuvemshop Callback] ✅ Script associado com sucesso!')
+        } catch (scriptError: any) {
+          console.error(
+            '[Nuvemshop Callback] ⚠️ Erro ao associar script:',
+            scriptError.response?.data || scriptError.message
+          )
+          // Não falha a integração se o script falhar
+          console.log('[Nuvemshop Callback] Continuando mesmo sem script...')
+        }
+      } else {
+        console.log(
+          '[Nuvemshop Callback] ⚠️ NUVEMSHOP_SCRIPT_ID não configurado - script não será instalado'
+        )
+        console.log('[Nuvemshop Callback] ⚠️ Carrinhos abandonados: use polling da API (backup)')
+      }
 
       // Redirecionar para frontend com sucesso
       const webUrl = env.get('WEB_URL', 'http://localhost:5173')

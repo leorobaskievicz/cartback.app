@@ -258,6 +258,40 @@ class NuvemshopService {
   }
 
   /**
+   * Associa script à loja (script deve estar criado no Partner Portal)
+   *
+   * @param storeId - ID da loja
+   * @param accessToken - Token de acesso OAuth
+   * @param scriptId - ID do script (obtido do Partner Portal)
+   * @param queryParams - Parâmetros que o script receberá (ex: tenant_uuid)
+   */
+  async associateScript(
+    storeId: number,
+    accessToken: string,
+    scriptId: string | number,
+    queryParams: Record<string, any> = {}
+  ): Promise<void> {
+    const client = this.createClient(storeId, accessToken)
+
+    try {
+      await client.post('/scripts', {
+        script_id: Number(scriptId),
+        query_params: JSON.stringify(queryParams),
+      })
+
+      console.log(`[Nuvemshop] Script ${scriptId} associado à loja ${storeId}`)
+    } catch (error: any) {
+      // Se já estiver associado, ignora o erro
+      if (error.response?.status === 409 || error.response?.status === 422) {
+        console.log(`[Nuvemshop] Script ${scriptId} já estava associado à loja ${storeId}`)
+        return
+      }
+
+      throw error
+    }
+  }
+
+  /**
    * Busca carrinho abandonado específico
    */
   async getAbandonedCheckout(
