@@ -35,19 +35,19 @@ try {
         queueService.registerWorker('check-cart-recovered', checkCartRecovered)
         queueService.registerWorker('poll-nuvemshop-carts', pollNuvemshopAbandonedCarts)
 
-        // Agendar polling de carrinhos Nuvemshop 2x por dia (backup)
-        // Script JavaScript no checkout detecta em tempo real
+        // Agendar polling de carrinhos Nuvemshop a cada 10 minutos
+        // Solução sem script: busca carrinhos abandonados via API REST
         await queueService.addRepeatingJob(
           'poll-nuvemshop-carts',
           {},
           {
-            pattern: '0 6,18 * * *', // Às 6h e 18h (backup)
+            pattern: '*/10 * * * *', // A cada 10 minutos
             jobId: 'poll-nuvemshop',
           }
         )
 
         console.log('✅ Workers initialized and running')
-        console.log('🔄 Polling Nuvemshop: 2x/dia às 6h e 18h (backup)')
+        console.log('🔄 Polling Nuvemshop: a cada 10 minutos via API REST')
 
         // Handle graceful shutdown
         process.on('SIGTERM', async () => {
