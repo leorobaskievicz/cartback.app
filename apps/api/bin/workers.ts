@@ -20,7 +20,8 @@ try {
       })
 
       app.ready(async () => {
-        const queueService = await app.container.make('queue_service')
+        // Import queue service directly (singleton)
+        const queueService = (await import('#jobs/queue_service')).default
 
         // Import and register all workers
         const { default: processAbandonedCart } = await import('#jobs/process_abandoned_cart')
