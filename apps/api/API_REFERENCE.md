@@ -480,6 +480,65 @@ Recebe eventos de carrinho abandonado da Nuvemshop.
 }
 ```
 
+### POST /api/webhooks/custom/:tenantUuid
+Webhook de carrinho abandonado para integração personalizada.
+
+**Headers:** `X-CartBack-API-Key: cwh_sua_key`
+
+**Body:**
+```json
+{
+  "cart_id": "cart_123456",
+  "customer_phone": "11999999999",
+  "customer_name": "João Silva",
+  "customer_email": "joao@email.com",
+  "cart_url": "https://minhaloja.com/cart/abc",
+  "total_value": 299.90,
+  "items": [...]
+}
+```
+
+### POST /api/webhooks/custom/:tenantUuid/order
+Webhook de pedido criado para marcar carrinho como recuperado.
+
+**Headers:** `X-CartBack-API-Key: cwh_sua_key`
+
+**Body:**
+```json
+{
+  "order_id": "order_789",
+  "customer_phone": "11999999999"
+}
+```
+
+### POST /api/webhooks/custom/:tenantUuid/whatsapp/send
+Disparo direto de mensagem WhatsApp via webhook.
+
+**Headers:** `X-CartBack-API-Key: cwh_sua_key`
+
+**Body:**
+```json
+{
+  "phone": "11999999999",
+  "message": "Texto da mensagem a ser enviada"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "data": {
+    "phone": "11999999999",
+    "instance": "cartback-tenant-1",
+    "messageId": "3EB0A2C4F1D7B8E9A0F1"
+  }
+}
+```
+
+> Requer que o tenant tenha uma instância WhatsApp conectada. Usa a mesma API Key da integração custom webhook.
+
 ---
 
 ## Placeholders de Mensagem

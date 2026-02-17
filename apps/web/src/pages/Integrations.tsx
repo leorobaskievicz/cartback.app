@@ -345,6 +345,50 @@ export default function Integrations() {
   </div>
 
   <div class="section">
+    <h2>3️⃣ Disparo Direto de Mensagem WhatsApp</h2>
+    <div class="success">
+      <strong>💬 Novo recurso!</strong> Envie mensagens WhatsApp avulsas diretamente via webhook, sem precisar de carrinho ou template — ideal para confirmação de pedido, rastreio, notificações, etc.
+    </div>
+
+    <h3>Endpoint</h3>
+    <pre>POST /api/webhooks/custom/{tenantUuid}/whatsapp/send</pre>
+    <p>URL Completa: <code>${webhookData?.webhookUrl || 'https://api.cartback.app/api/webhooks/custom/SEU_UUID'}/whatsapp/send</code></p>
+
+    <h3>Headers Obrigatórios</h3>
+    <table>
+      <tr><th>Header</th><th>Valor</th></tr>
+      <tr><td><code>Content-Type</code></td><td>application/json</td></tr>
+      <tr><td><code>X-CartBack-API-Key</code></td><td>${newApiKey || 'SUA_API_KEY'}</td></tr>
+    </table>
+
+    <h3>Campos do Body</h3>
+    <table>
+      <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
+      <tr><td><code>phone</code></td><td>string</td><td>Número de destino (com ou sem código do país, ex: 11999999999)</td></tr>
+      <tr><td><code>message</code></td><td>string</td><td>Texto da mensagem a ser enviada</td></tr>
+    </table>
+
+    <h3>Exemplo de Request</h3>
+    <pre>${JSON.stringify({ phone: '11999999999', message: 'Olá João! Seu pedido #1234 foi despachado. Entrega prevista: 3 dias úteis. 🚚' }, null, 2)}</pre>
+
+    <h3>Exemplo de Resposta</h3>
+    <pre>${JSON.stringify({ success: true, message: 'Message sent successfully', data: { phone: '11999999999', instance: 'cartback-tenant-1', messageId: '3EB0A2C4F1D7B8E9A0F1' } }, null, 2)}</pre>
+
+    <h3>Exemplo cURL</h3>
+    <pre>curl -X POST '${webhookData?.webhookUrl || 'https://api.cartback.app/api/webhooks/custom/SEU_UUID'}/whatsapp/send' \\
+  -H 'Content-Type: application/json' \\
+  -H 'X-CartBack-API-Key: ${newApiKey || 'SUA_API_KEY'}' \\
+  -d '{
+    "phone": "11999999999",
+    "message": "Olá! Sua mensagem aqui."
+  }'</pre>
+
+    <div class="warning">
+      <strong>⚠️ Atenção:</strong> O WhatsApp precisa estar conectado no painel do CartBack para que o disparo funcione. Se não houver instância conectada, a API retornará erro 422.
+    </div>
+  </div>
+
+  <div class="section">
     <h2>💻 Exemplos de Implementação</h2>
 
     <div class="tabs">

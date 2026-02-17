@@ -10,6 +10,7 @@ Documentação completa para integrar sua plataforma customizada com CartBack us
 - [Configuração](#configuração)
 - [Autenticação](#autenticação)
 - [API Webhook](#api-webhook)
+- [Disparo Direto de Mensagem WhatsApp](#-disparo-direto-de-mensagem-whatsapp)
 - [Exemplos de Implementação](#exemplos-de-implementação)
 - [Testes](#testes)
 - [Troubleshooting](#troubleshooting)
@@ -372,6 +373,133 @@ app.post('/checkout/complete', async (req, res) => {
   res.json({ success: true, orderId: order.id })
 })
 ```
+
+---
+
+---
+
+## 📲 Disparo Direto de Mensagem WhatsApp
+
+Além do fluxo de carrinho abandonado, você pode usar a mesma integração para **disparar mensagens WhatsApp avulsas** diretamente via webhook — sem precisar de nenhum carrinho ou template configurado.
+
+### Casos de Uso
+
+- Confirmação de pedido personalizada
+- Notificação de entrega/rastreio
+- Alertas e comunicados para clientes
+- Qualquer mensagem pontual que precise enviar via WhatsApp
+
+### Endpoint
+
+```http
+POST /api/webhooks/custom/{tenantUuid}/whatsapp/send
+```
+
+**URL Completa:**
+```
+http://localhost:3333/api/webhooks/custom/abc-123-uuid/whatsapp/send
+```
+
+### Headers
+
+| Header | Valor | Obrigatório |
+|--------|-------|-------------|
+| `Content-Type` | `application/json` | ✅ |
+| `X-CartBack-API-Key` | `cwh_your_key` | ✅ |
+
+### Body
+
+| Campo | Tipo | Descrição | Exemplo |
+|-------|------|-----------|---------|
+| `phone` | `string` | Número de destino (com ou sem código do país) | `"11999999999"` |
+| `message` | `string` | Texto da mensagem a ser enviada | `"Seu pedido foi enviado!"` |
+
+### Exemplo de Request
+
+```json
+{
+  "phone": "11999999999",
+  "message": "Olá João! Seu pedido #1234 foi despachado e chegará em até 3 dias úteis. 🚚"
+}
+```
+
+### Resposta de Sucesso
+
+**Status:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "data": {
+    "phone": "11999999999",
+    "instance": "cartback-tenant-1",
+    "messageId": "3EB0A2C4F1D7B8E9A0F1"
+  }
+}
+```
+
+### Respostas de Erro
+
+#### 422 Unprocessable Entity - WhatsApp desconectado
+
+```json
+{
+  "error": "No connected WhatsApp instance found for this tenant"
+}
+```
+
+#### 400 Bad Request - Campo faltando
+
+```json
+{
+  "error": "O campo \"phone\" é obrigatório"
+}
+```
+
+#### 500 Internal Server Error - Falha no envio
+
+```json
+{
+  "error": "Failed to send WhatsApp message",
+  "details": "Phone number not registered on WhatsApp"
+}
+```
+
+### Exemplo cURL
+
+```bash
+curl -X POST 'http://localhost:3333/api/webhooks/custom/seu-uuid/whatsapp/send' \
+  -H 'Content-Type: application/json' \
+  -H 'X-CartBack-API-Key: cwh_sua_api_key_aqui' \
+  -d '{
+    "phone": "11999999999",
+    "message": "Olá! Sua mensagem aqui."
+  }'
+```
+
+### Exemplo Node.js
+
+```javascript
+async function sendWhatsappMessage(phone, message) {
+  const response = await axios.post(
+    'https://api.cartback.app/api/webhooks/custom/seu-uuid/whatsapp/send',
+    { phone, message },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CartBack-API-Key': process.env.CARTBACK_API_KEY
+      }
+    }
+  )
+  return response.data
+}
+
+// Exemplo: notificar entrega
+await sendWhatsappMessage('11999999999', `Olá ${cliente.nome}! Seu pedido #${pedido.numero} foi entregue. Obrigado pela compra! 🎉`)
+```
+
+> **⚠️ Atenção:** O tenant precisa ter o WhatsApp conectado no painel do CartBack para que o disparo funcione. Se não houver instância conectada, a API retornará erro 422.
 
 ---
 

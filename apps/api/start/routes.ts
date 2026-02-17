@@ -15,6 +15,7 @@ const NuvemshopWebhookController = () => import('#controllers/webhooks/nuvemshop
 const NuvemshopScriptWebhookController = () => import('#controllers/webhooks/nuvemshop_script_webhook_controller')
 const AsaasWebhookController = () => import('#controllers/webhooks/asaas_webhook_controller')
 const CustomWebhookController = () => import('#controllers/webhooks/custom_webhook_controller')
+const WhatsappSendWebhookController = () => import('#controllers/webhooks/whatsapp_send_webhook_controller')
 
 // Health check
 router.get('/', async () => {
@@ -63,6 +64,7 @@ router
     router.post('/nuvemshop-script/:tenantUuid', [NuvemshopScriptWebhookController, 'handle'])
     router.post('/custom/:tenantUuid', [CustomWebhookController, 'receive'])
     router.post('/custom/:tenantUuid/order', [CustomWebhookController, 'orderCreated'])
+    router.post('/custom/:tenantUuid/whatsapp/send', [WhatsappSendWebhookController, 'send'])
     router.get('/custom/docs', [CustomWebhookController, 'docs'])
     router.post('/whatsapp', [WhatsappController, 'webhook'])
     router.post('/asaas', [AsaasWebhookController, 'handle'])
