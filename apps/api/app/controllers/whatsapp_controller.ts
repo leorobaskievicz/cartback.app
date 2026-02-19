@@ -471,8 +471,31 @@ export default class WhatsappController {
         const state = data.state || data.connection
 
         if (state === 'open') {
+          const phoneNumber = data.phoneNumber || data.instance?.number || null
+
+          // Verificar se o número já está conectado em outro tenant
+          if (phoneNumber) {
+            const existingConnection = await WhatsappInstance.query()
+              .where('phone_number', phoneNumber)
+              .where('status', 'connected')
+              .whereNot('id', instance.id)
+              .first()
+
+            if (existingConnection) {
+              console.error(`🚫 Phone ${phoneNumber} already connected on tenant ${existingConnection.tenantId}. Refusing connection for instance ${instanceName} (tenant ${instance.tenantId}).`)
+              // Desconectar automaticamente para proteger o tenant original
+              try {
+                const { default: evolutionApi } = await import('#services/evolution_api_service')
+                await evolutionApi.logout(instanceName)
+              } catch (e: any) {
+                console.error('Could not auto-logout duplicate instance:', e.message)
+              }
+              return response.ok({ success: true })
+            }
+          }
+
           instance.status = 'connected'
-          instance.phoneNumber = data.phoneNumber || data.instance?.number
+          instance.phoneNumber = phoneNumber
           instance.connectedAt = DateTime.now()
           instance.qrCode = null
           await instance.save()
