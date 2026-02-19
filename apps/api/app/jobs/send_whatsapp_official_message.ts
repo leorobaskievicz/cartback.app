@@ -1,6 +1,6 @@
 import { Job } from 'bullmq'
 import WhatsappOfficialLog from '#models/whatsapp_official_log'
-import WhatsappOfficialTemplate from '#models/whatsapp_official_template'
+import MessageTemplate from '#models/message_template'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import AbandonedCart from '#models/abandoned_cart'
 import Subscription from '#models/subscription'
@@ -54,13 +54,15 @@ export async function sendWhatsappOfficialMessage(
     return
   }
 
-  // 3. Buscar o template oficial
-  const template = await WhatsappOfficialTemplate.find(templateId)
-  if (!template || template.status !== 'APPROVED') {
+  // 3. Buscar o template unificado (deve estar aprovado na Meta)
+  const template = await MessageTemplate.find(templateId)
+  if (!template || template.metaStatus !== 'approved' || !template.metaTemplateId) {
     officialLog.status = 'failed'
-    officialLog.errorMessage = 'Template não encontrado ou não aprovado'
+    officialLog.errorMessage = 'Template não encontrado ou não aprovado na Meta'
     await officialLog.save()
-    console.log(`[OfficialMsg] Template ${templateId} não encontrado ou não aprovado`)
+    console.log(
+      `[OfficialMsg] Template ${templateId} não encontrado ou não aprovado (metaStatus: ${template?.metaStatus})`
+    )
     return
   }
 
@@ -93,7 +95,9 @@ export async function sendWhatsappOfficialMessage(
   ]
 
   try {
-    console.log(`[OfficialMsg] Enviando template "${template.name}" para ${cart.customerPhone}...`)
+    console.log(
+      `[OfficialMsg] Enviando template Meta "${template.metaTemplateName}" (CartBack: "${template.name}") para ${cart.customerPhone}...`
+    )
 
     const credentials = {
       phoneNumberId: credential.phoneNumberId,
@@ -104,8 +108,8 @@ export async function sendWhatsappOfficialMessage(
 
     const result = await whatsappOfficialService.sendTemplateMessage(credentials, {
       to: cart.customerPhone,
-      templateName: template.name,
-      languageCode: template.language,
+      templateName: template.metaTemplateName!,
+      languageCode: template.metaLanguage,
       components: [
         {
           type: 'body',

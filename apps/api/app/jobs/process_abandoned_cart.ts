@@ -4,7 +4,6 @@ import MessageTemplate from '#models/message_template'
 import MessageLog from '#models/message_log'
 import WhatsappInstance from '#models/whatsapp_instance'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
-import WhatsappOfficialTemplate from '#models/whatsapp_official_template'
 import WhatsappOfficialLog from '#models/whatsapp_official_log'
 import Subscription from '#models/subscription'
 import queueService from '#jobs/queue_service'
@@ -119,23 +118,25 @@ async function scheduleOfficialMessages(
     return false
   }
 
-  // Buscar templates oficiais aprovados para carrinho abandonado
-  const officialTemplates = await WhatsappOfficialTemplate.query()
+  // Buscar templates unificados que estão aprovados na Meta
+  const approvedTemplates = await MessageTemplate.query()
     .where('tenant_id', tenantId)
     .where('trigger_type', 'abandoned_cart')
-    .where('status', 'APPROVED')
+    .where('is_active', true)
+    .where('meta_status', 'approved')
+    .whereNotNull('meta_template_id')
     .orderBy('delay_minutes', 'asc')
 
-  if (officialTemplates.length === 0) {
+  if (approvedTemplates.length === 0) {
     console.log(
-      `[ProcessCart] Nenhum template oficial aprovado para 'abandoned_cart' no tenant ${tenantId}`
+      `[ProcessCart] Nenhum template aprovado na Meta para 'abandoned_cart' no tenant ${tenantId}`
     )
     return false
   }
 
   let scheduledCount = 0
 
-  for (const template of officialTemplates) {
+  for (const template of approvedTemplates) {
     const delayMs = template.delayMinutes * 60 * 1000
     const jobId = `official-msg-${cart.id}-${template.id}`
 
@@ -144,10 +145,10 @@ async function scheduleOfficialMessages(
       tenantId,
       officialTemplateId: template.id,
       abandonedCartId: cart.id,
-      templateName: template.name,
+      templateName: template.metaTemplateName || template.name,
       recipientPhone: cart.customerPhone,
       recipientName: cart.customerName || null,
-      languageCode: template.language,
+      languageCode: template.metaLanguage,
       messageType: 'template',
       status: 'queued',
     })
@@ -169,13 +170,13 @@ async function scheduleOfficialMessages(
 
     scheduledCount++
     console.log(
-      `[ProcessCart] Mensagem oficial ${officialLog.id} agendada para +${template.delayMinutes}min (job: ${jobId})`
+      `[ProcessCart] Mensagem oficial ${officialLog.id} agendada para +${template.delayMinutes}min (template: ${template.metaTemplateName}, job: ${jobId})`
     )
   }
 
   if (scheduledCount > 0) {
     // Agendar verificação de recuperação
-    const lastTemplate = officialTemplates[officialTemplates.length - 1]
+    const lastTemplate = approvedTemplates[approvedTemplates.length - 1]
     const checkDelay = (lastTemplate.delayMinutes + 12 * 60) * 60 * 1000
 
     await queueService.addJob(

@@ -126,6 +126,7 @@ router
         router.get('/', [MessageTemplatesController, 'index'])
         router.post('/', [MessageTemplatesController, 'store'])
         router.put('/reorder', [MessageTemplatesController, 'reorder'])
+        router.post('/sync', [MessageTemplatesController, 'sync'])
         router.post('/:id/test', [MessageTemplatesController, 'test'])
         router.put('/:id', [MessageTemplatesController, 'update'])
         router.delete('/:id', [MessageTemplatesController, 'destroy'])

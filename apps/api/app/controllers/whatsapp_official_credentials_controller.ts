@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import whatsappOfficialService from '#services/whatsapp_official_service'
+import templateSyncService from '#services/template_sync_service'
 import {
   upsertOfficialCredentialsValidator,
 } from '#validators/whatsapp_official'
@@ -103,6 +104,19 @@ export default class WhatsappOfficialCredentialsController {
         isActive: true,
       })
     }
+
+    // Auto-sync templates em background (não bloqueia resposta)
+    templateSyncService
+      .fullSync(user.tenantId)
+      .then((result) => {
+        console.log(
+          `✅ Auto-sync completed for tenant ${user.tenantId}:`,
+          `Sent: ${result.sentToMeta}, Imported: ${result.importedFromMeta}, Updated: ${result.updated}`
+        )
+      })
+      .catch((error) => {
+        console.error(`⚠️ Auto-sync failed for tenant ${user.tenantId}:`, error)
+      })
 
     return response.ok({
       success: true,
