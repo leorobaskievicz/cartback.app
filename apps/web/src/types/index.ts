@@ -223,3 +223,94 @@ export interface PaymentHistory {
   dueDate: string
   createdAt: string
 }
+
+// ===========================
+// WhatsApp Official API Types
+// ===========================
+
+export interface WhatsAppOfficialCredential {
+  id: number
+  phoneNumberId: string
+  wabaId: string
+  accessToken: string // mascarado no backend
+  webhookVerifyToken: string
+  phoneNumber: string | null
+  displayName: string | null
+  status: 'active' | 'inactive' | 'error'
+  lastError: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TemplateButton {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+  text: string
+  url?: string
+  phone_number?: string
+}
+
+export interface TemplateComponent {
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
+  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+  text?: string
+  buttons?: TemplateButton[]
+  example?: {
+    header_text?: string[]
+    body_text?: string[][]
+    header_handle?: string[]
+  }
+}
+
+export interface WhatsAppOfficialTemplate {
+  id: number
+  tenantId: number
+  metaTemplateId: string | null
+  name: string
+  displayName: string | null
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+  language: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
+  rejectionReason: string | null
+  components: TemplateComponent[]
+  bodyText: string | null
+  headerType: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | null
+  headerText: string | null
+  footerText: string | null
+  buttonsCount: number
+  approvedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WhatsAppOfficialLog {
+  id: number
+  tenantId: number
+  officialTemplateId: number | null
+  abandonedCartId: number | null
+  templateName: string
+  recipientPhone: string
+  recipientName: string | null
+  languageCode: string
+  messageType: 'template' | 'text' | 'image' | 'document'
+  status: 'queued' | 'sent' | 'delivered' | 'read' | 'failed'
+  metaMessageId: string | null
+  errorMessage: string | null
+  errorCode: number | null
+  bodyParams: any | null
+  sentAt: string | null
+  deliveredAt: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+export interface WhatsAppOfficialLogStats {
+  total: number
+  sent: number
+  delivered: number
+  read: number
+  failed: number
+  deliveryRate: number
+  readRate: number
+  topTemplates: Array<{ name: string; count: number }>
+}

@@ -16,6 +16,11 @@ const NuvemshopScriptWebhookController = () => import('#controllers/webhooks/nuv
 const AsaasWebhookController = () => import('#controllers/webhooks/asaas_webhook_controller')
 const CustomWebhookController = () => import('#controllers/webhooks/custom_webhook_controller')
 const WhatsappSendWebhookController = () => import('#controllers/webhooks/whatsapp_send_webhook_controller')
+// WhatsApp Official API Controllers
+const WhatsappOfficialCredentialsController = () => import('#controllers/whatsapp_official_credentials_controller')
+const WhatsappOfficialTemplatesController = () => import('#controllers/whatsapp_official_templates_controller')
+const WhatsappOfficialLogsController = () => import('#controllers/whatsapp_official_logs_controller')
+const WhatsappOfficialWebhookController = () => import('#controllers/webhooks/whatsapp_official_webhook_controller')
 
 // Health check
 router.get('/', async () => {
@@ -67,6 +72,8 @@ router
     router.post('/custom/:tenantUuid/whatsapp/send', [WhatsappSendWebhookController, 'send'])
     router.get('/custom/docs', [CustomWebhookController, 'docs'])
     router.post('/whatsapp', [WhatsappController, 'webhook'])
+    router.get('/whatsapp-official/:tenantUuid', [WhatsappOfficialWebhookController, 'verify'])
+    router.post('/whatsapp-official/:tenantUuid', [WhatsappOfficialWebhookController, 'handle'])
     router.post('/asaas', [AsaasWebhookController, 'handle'])
   })
   .prefix('/api/webhooks')
@@ -153,6 +160,29 @@ router
         router.get('/payments', [PlansController, 'payments'])
       })
       .prefix('/subscription')
+
+    // WhatsApp Official API - /api/whatsapp-official
+    router
+      .group(() => {
+        // Credenciais
+        router.get('/credentials', [WhatsappOfficialCredentialsController, 'show'])
+        router.post('/credentials', [WhatsappOfficialCredentialsController, 'upsert'])
+        router.delete('/credentials', [WhatsappOfficialCredentialsController, 'destroy'])
+        router.post('/credentials/verify', [WhatsappOfficialCredentialsController, 'verify'])
+
+        // Templates
+        router.get('/templates', [WhatsappOfficialTemplatesController, 'index'])
+        router.get('/templates/:id', [WhatsappOfficialTemplatesController, 'show'])
+        router.post('/templates', [WhatsappOfficialTemplatesController, 'store'])
+        router.delete('/templates/:id', [WhatsappOfficialTemplatesController, 'destroy'])
+        router.post('/templates/sync', [WhatsappOfficialTemplatesController, 'sync'])
+
+        // Logs
+        router.get('/logs', [WhatsappOfficialLogsController, 'index'])
+        router.get('/logs/stats', [WhatsappOfficialLogsController, 'stats'])
+        router.get('/logs/:id', [WhatsappOfficialLogsController, 'show'])
+      })
+      .prefix('/whatsapp-official')
   })
   .prefix('/api')
   .use([middleware.auth(), middleware.tenant()])

@@ -1,0 +1,186 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
+import whatsappOfficialService from '#services/whatsapp_official_service'
+import {
+  upsertOfficialCredentialsValidator,
+} from '#validators/whatsapp_official'
+
+export default class WhatsappOfficialCredentialsController {
+  /**
+   * GET /api/whatsapp-official/credentials
+   * Retorna as credenciais do tenant (sem expor o access_token completo)
+   */
+  async show({ auth, response }: HttpContext) {
+    const user = auth.user!
+
+    const credential = await WhatsappOfficialCredential.query()
+      .where('tenant_id', user.tenantId)
+      .first()
+
+    if (!credential) {
+      return response.ok({
+        success: true,
+        data: { configured: false, credential: null },
+      })
+    }
+
+    return response.ok({
+      success: true,
+      data: {
+        configured: true,
+        credential: {
+          id: credential.id,
+          phoneNumberId: credential.phoneNumberId,
+          wabaId: credential.wabaId,
+          // Mascarar o token por segurança
+          accessToken: credential.accessToken
+            ? '••••••••' + credential.accessToken.slice(-6)
+            : null,
+          webhookVerifyToken: credential.webhookVerifyToken,
+          phoneNumber: credential.phoneNumber,
+          displayName: credential.displayName,
+          status: credential.status,
+          lastError: credential.lastError,
+          isActive: credential.isActive,
+          createdAt: credential.createdAt,
+          updatedAt: credential.updatedAt,
+        },
+      },
+    })
+  }
+
+  /**
+   * POST /api/whatsapp-official/credentials
+   * Cria ou atualiza as credenciais do tenant
+   */
+  async upsert({ auth, request, response }: HttpContext) {
+    const user = auth.user!
+    const data = await upsertOfficialCredentialsValidator.validate(request.all())
+
+    // Verificar credenciais na Meta API antes de salvar
+    const verification = await whatsappOfficialService.verifyCredentials({
+      phoneNumberId: data.phoneNumberId,
+      wabaId: data.wabaId,
+      accessToken: data.accessToken,
+    })
+
+    if (!verification.valid) {
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'INVALID_META_CREDENTIALS',
+          message: 'Credenciais inválidas: ' + verification.error,
+        },
+      })
+    }
+
+    // Criar ou atualizar credenciais
+    let credential = await WhatsappOfficialCredential.query()
+      .where('tenant_id', user.tenantId)
+      .first()
+
+    if (credential) {
+      credential.phoneNumberId = data.phoneNumberId
+      credential.wabaId = data.wabaId
+      credential.accessToken = data.accessToken
+      credential.webhookVerifyToken = data.webhookVerifyToken
+      credential.phoneNumber = verification.phoneNumber || null
+      credential.displayName = verification.displayName || null
+      credential.status = 'active'
+      credential.lastError = null
+      credential.isActive = true
+      await credential.save()
+    } else {
+      credential = await WhatsappOfficialCredential.create({
+        tenantId: user.tenantId,
+        phoneNumberId: data.phoneNumberId,
+        wabaId: data.wabaId,
+        accessToken: data.accessToken,
+        webhookVerifyToken: data.webhookVerifyToken,
+        phoneNumber: verification.phoneNumber || null,
+        displayName: verification.displayName || null,
+        status: 'active',
+        isActive: true,
+      })
+    }
+
+    return response.ok({
+      success: true,
+      data: {
+        id: credential.id,
+        phoneNumberId: credential.phoneNumberId,
+        wabaId: credential.wabaId,
+        accessToken: '••••••••' + credential.accessToken.slice(-6),
+        webhookVerifyToken: credential.webhookVerifyToken,
+        phoneNumber: credential.phoneNumber,
+        displayName: credential.displayName,
+        status: credential.status,
+        isActive: credential.isActive,
+      },
+      message: 'Credenciais salvas com sucesso!',
+    })
+  }
+
+  /**
+   * DELETE /api/whatsapp-official/credentials
+   * Remove as credenciais do tenant
+   */
+  async destroy({ auth, response }: HttpContext) {
+    const user = auth.user!
+
+    const credential = await WhatsappOfficialCredential.query()
+      .where('tenant_id', user.tenantId)
+      .firstOrFail()
+
+    await credential.delete()
+
+    return response.ok({
+      success: true,
+      data: { message: 'Credenciais removidas com sucesso' },
+    })
+  }
+
+  /**
+   * POST /api/whatsapp-official/credentials/verify
+   * Verifica as credenciais atuais sem modificá-las
+   */
+  async verify({ auth, response }: HttpContext) {
+    const user = auth.user!
+
+    const credential = await WhatsappOfficialCredential.query()
+      .where('tenant_id', user.tenantId)
+      .firstOrFail()
+
+    const verification = await whatsappOfficialService.verifyCredentials({
+      phoneNumberId: credential.phoneNumberId,
+      wabaId: credential.wabaId,
+      accessToken: credential.accessToken,
+    })
+
+    if (!verification.valid) {
+      credential.status = 'error'
+      credential.lastError = verification.error || 'Falha na verificação'
+      await credential.save()
+
+      return response.ok({
+        success: true,
+        data: { valid: false, error: verification.error },
+      })
+    }
+
+    credential.status = 'active'
+    credential.lastError = null
+    credential.phoneNumber = verification.phoneNumber || credential.phoneNumber
+    credential.displayName = verification.displayName || credential.displayName
+    await credential.save()
+
+    return response.ok({
+      success: true,
+      data: {
+        valid: true,
+        phoneNumber: verification.phoneNumber,
+        displayName: verification.displayName,
+      },
+    })
+  }
+}
