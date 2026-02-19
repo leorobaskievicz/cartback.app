@@ -1,10 +1,10 @@
 # Railway config para o serviço WEB (Root Directory = / no Railway)
-# O serviço API usa apps/api/railway.toml (Root Directory = apps/api)
-# O serviço Evolution usa apps/evolution/railway.toml (Root Directory = apps/evolution)
+# O serviço API usa rootDirectory = apps/api no Railway (usa apps/api/Dockerfile)
+# O serviço Workers usa rootDirectory = / com dockerfilePath = apps/api/Dockerfile.workers via Railway dashboard
+# IMPORTANTE: Não especificar dockerfilePath aqui para não sobrescrever configs de outros serviços
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
 
 [deploy]
 restartPolicyType = "on_failure"
