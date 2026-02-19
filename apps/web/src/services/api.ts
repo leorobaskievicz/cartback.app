@@ -153,13 +153,7 @@ export const whatsappApi = {
 export const templatesApi = {
   list: () => api.get<ApiResponse<MessageTemplate[]>>('/templates'),
 
-  create: (data: {
-    name: string
-    triggerType: 'abandoned_cart' | 'order_confirmation'
-    delayMinutes: number
-    content: string
-    isActive: boolean
-  }) => api.post<ApiResponse<MessageTemplate>>('/templates', data),
+  create: (data: any) => api.post<ApiResponse<MessageTemplate>>('/templates', data),
 
   update: (
     id: number,
