@@ -32,8 +32,8 @@ import type { WhatsAppOfficialCredential } from '../../../types'
 import { useAuth } from '../../../contexts/AuthContext'
 import LoadingButton from '../../common/LoadingButton'
 import ConfirmDialog from '../../common/ConfirmDialog'
-import WhatsAppOfficialTemplates from './WhatsAppOfficialTemplates'
 import WhatsAppOfficialLogs from './WhatsAppOfficialLogs'
+import { useNavigate } from 'react-router-dom'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -70,6 +70,7 @@ export default function WhatsAppOfficialSetup() {
 
   const { enqueueSnackbar } = useSnackbar()
   const { tenant } = useAuth()
+  const navigate = useNavigate()
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333/api'
   const webhookUrl = `${apiUrl}/webhooks/whatsapp-official/${tenant?.uuid ?? ''}`
@@ -232,12 +233,29 @@ export default function WhatsAppOfficialSetup() {
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
               <Tab label="Configurações" />
-              <Tab label="Templates" />
               <Tab label="Logs de Disparos" />
             </Tabs>
           </Box>
 
           <TabPanel value={tab} index={0}>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                📝 Templates Unificados
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                Os templates agora são gerenciados em uma interface única que funciona tanto para
+                Evolution API quanto para Meta WhatsApp API Oficial.
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/templates')}
+                sx={{ mt: 1 }}
+              >
+                Ir para Templates
+              </Button>
+            </Alert>
+
             <CredentialsForm
               form={form}
               setForm={setForm}
@@ -252,10 +270,6 @@ export default function WhatsAppOfficialSetup() {
           </TabPanel>
 
           <TabPanel value={tab} index={1}>
-            <WhatsAppOfficialTemplates />
-          </TabPanel>
-
-          <TabPanel value={tab} index={2}>
             <WhatsAppOfficialLogs />
           </TabPanel>
         </>
