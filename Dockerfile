@@ -1,4 +1,5 @@
 FROM node:20-alpine AS base
+# trigger: deploy with DOCKERFILE builder fix
 
 # Build arguments (Railway will pass these from environment variables)
 ARG VITE_API_URL
