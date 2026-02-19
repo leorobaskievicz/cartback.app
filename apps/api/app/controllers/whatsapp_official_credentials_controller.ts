@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { DateTime } from 'luxon'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import whatsappOfficialService from '#services/whatsapp_official_service'
 import templateSyncService from '#services/template_sync_service'
@@ -43,6 +44,7 @@ export default class WhatsappOfficialCredentialsController {
           status: credential.status,
           lastError: credential.lastError,
           isActive: credential.isActive,
+          tokenExpiresAt: credential.tokenExpiresAt,
           createdAt: credential.createdAt,
           updatedAt: credential.updatedAt,
         },
@@ -75,6 +77,22 @@ export default class WhatsappOfficialCredentialsController {
       })
     }
 
+    // Tentar obter informações sobre expiração do token
+    let tokenExpiresAt: DateTime | null = null
+    try {
+      const tokenDebug = await whatsappOfficialService.debugAccessToken(data.accessToken)
+      if (tokenDebug.isValid && tokenDebug.expiresAt) {
+        // expiresAt é timestamp Unix (segundos), converter para DateTime
+        // Se expiresAt for 0, significa que é token permanente (System User)
+        if (tokenDebug.expiresAt > 0) {
+          tokenExpiresAt = DateTime.fromSeconds(tokenDebug.expiresAt)
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Não foi possível obter data de expiração do token:', error)
+      // Não é crítico, continua sem a data de expiração
+    }
+
     // Criar ou atualizar credenciais
     let credential = await WhatsappOfficialCredential.query()
       .where('tenant_id', user.tenantId)
@@ -90,6 +108,7 @@ export default class WhatsappOfficialCredentialsController {
       credential.status = 'active'
       credential.lastError = null
       credential.isActive = true
+      credential.tokenExpiresAt = tokenExpiresAt
       await credential.save()
     } else {
       credential = await WhatsappOfficialCredential.create({
@@ -102,6 +121,7 @@ export default class WhatsappOfficialCredentialsController {
         displayName: verification.displayName || null,
         status: 'active',
         isActive: true,
+        tokenExpiresAt: tokenExpiresAt,
       })
     }
 
@@ -130,6 +150,7 @@ export default class WhatsappOfficialCredentialsController {
         displayName: credential.displayName,
         status: credential.status,
         isActive: credential.isActive,
+        tokenExpiresAt: credential.tokenExpiresAt,
       },
       message: 'Credenciais salvas com sucesso!',
     })

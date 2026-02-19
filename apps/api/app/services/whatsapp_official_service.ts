@@ -312,6 +312,40 @@ export class WhatsappOfficialService {
   }
 
   /**
+   * Obtém informações sobre o token de acesso (depuração)
+   * Retorna dados sobre a validade do token
+   */
+  async debugAccessToken(
+    accessToken: string
+  ): Promise<{ isValid: boolean; expiresAt?: number; error?: string }> {
+    try {
+      const client = this.buildClient(accessToken)
+      const response = await client.get<{
+        data: {
+          app_id: string
+          type: string
+          application: string
+          data_access_expires_at: number
+          expires_at: number
+          is_valid: boolean
+          scopes: string[]
+          user_id: string
+        }
+      }>('/debug_token', {
+        params: { input_token: accessToken },
+      })
+
+      return {
+        isValid: response.data.data.is_valid,
+        expiresAt: response.data.data.expires_at,
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.error?.message || 'Erro ao validar token'
+      return { isValid: false, error: message }
+    }
+  }
+
+  /**
    * Formata número de telefone para o padrão WhatsApp (sem + ou espaços)
    */
   private formatPhone(phone: string): string {
