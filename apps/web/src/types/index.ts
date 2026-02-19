@@ -91,6 +91,17 @@ export interface MessageTemplate {
   content: string
   isActive: boolean
   sortOrder: number
+  // Meta WhatsApp Official API fields
+  metaTemplateId: string | null
+  metaTemplateName: string | null
+  metaStatus: 'pending' | 'approved' | 'rejected' | 'not_synced'
+  metaLanguage: string
+  metaCategory: 'MARKETING' | 'UTILITY'
+  metaComponents: any | null
+  metaRejectionReason: string | null
+  syncedAt: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AbandonedCart {

@@ -20,7 +20,19 @@ import {
   Alert,
   Tooltip,
 } from '@mui/material'
-import { Add, Edit, Delete, DragIndicator, Send, Lock } from '@mui/icons-material'
+import {
+  Add,
+  Edit,
+  Delete,
+  DragIndicator,
+  Send,
+  Lock,
+  Sync,
+  CheckCircle,
+  HourglassEmpty,
+  Error,
+  Help,
+} from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { useNavigate } from 'react-router-dom'
 import { templatesApi, plansApi } from '../services/api'
@@ -48,6 +60,7 @@ export default function Templates() {
   const [saveLoading, setSaveLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [testLoading, setTestLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
 
   useEffect(() => {
@@ -186,6 +199,85 @@ export default function Templates() {
     }
   }
 
+  const handleSync = async () => {
+    setSyncLoading(true)
+    try {
+      const response = await templatesApi.sync()
+      const { sentToMeta, importedFromMeta, updated } = response.data.data
+      enqueueSnackbar(
+        `Sincronização concluída! Enviados: ${sentToMeta}, Importados: ${importedFromMeta}, Atualizados: ${updated}`,
+        { variant: 'success' }
+      )
+      await loadTemplates()
+    } catch (error: any) {
+      enqueueSnackbar('Erro ao sincronizar templates', { variant: 'error' })
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
+  const getMetaStatusBadge = (template: MessageTemplate) => {
+    if (!template.metaStatus || template.metaStatus === 'not_synced') {
+      return (
+        <Tooltip title="Não sincronizado com Meta WhatsApp API (funciona apenas com Evolution API)">
+          <Chip
+            icon={<Help />}
+            label="Evolution Only"
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'grey.400', color: 'text.secondary' }}
+          />
+        </Tooltip>
+      )
+    }
+
+    if (template.metaStatus === 'approved') {
+      return (
+        <Tooltip title="Template aprovado pela Meta - pode ser usado na API Oficial">
+          <Chip
+            icon={<CheckCircle />}
+            label="Meta Approved"
+            size="small"
+            color="success"
+            variant="outlined"
+          />
+        </Tooltip>
+      )
+    }
+
+    if (template.metaStatus === 'pending') {
+      return (
+        <Tooltip title="Template enviado para Meta - aguardando aprovação (pode levar até 24h)">
+          <Chip
+            icon={<HourglassEmpty />}
+            label="Meta Pending"
+            size="small"
+            color="warning"
+            variant="outlined"
+          />
+        </Tooltip>
+      )
+    }
+
+    if (template.metaStatus === 'rejected') {
+      return (
+        <Tooltip
+          title={`Rejeitado pela Meta: ${template.metaRejectionReason || 'Motivo não especificado'}`}
+        >
+          <Chip
+            icon={<Error />}
+            label="Meta Rejected"
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+        </Tooltip>
+      )
+    }
+
+    return null
+  }
+
   const getPreviewMessage = (message: string) => {
     return message
       .replace(/\{\{nome\}\}/g, 'João Silva')
@@ -222,24 +314,34 @@ export default function Templates() {
             </Typography>
           )}
         </Box>
-        <Tooltip
-          title={
-            isLimitReached
-              ? `Limite de templates atingido (${subscription?.templatesLimit}). Faça upgrade do plano.`
-              : ''
-          }
-        >
-          <span>
-            <Button
-              variant="contained"
-              startIcon={isLimitReached ? <Lock /> : <Add />}
-              onClick={() => handleOpenDialog()}
-              disabled={!!isLimitReached}
-            >
-              Novo Template
-            </Button>
-          </span>
-        </Tooltip>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <LoadingButton
+            variant="outlined"
+            startIcon={<Sync />}
+            onClick={handleSync}
+            loading={syncLoading}
+          >
+            Sincronizar com Meta
+          </LoadingButton>
+          <Tooltip
+            title={
+              isLimitReached
+                ? `Limite de templates atingido (${subscription?.templatesLimit}). Faça upgrade do plano.`
+                : ''
+            }
+          >
+            <span>
+              <Button
+                variant="contained"
+                startIcon={isLimitReached ? <Lock /> : <Add />}
+                onClick={() => handleOpenDialog()}
+                disabled={!!isLimitReached}
+              >
+                Novo Template
+              </Button>
+            </span>
+          </Tooltip>
+        </Box>
       </Box>
 
       {isLimitReached && (
@@ -277,7 +379,7 @@ export default function Templates() {
                       <DragIndicator />
                     </IconButton>
                     <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                         <Typography variant="h6" fontWeight={600}>
                           {template.name}
                         </Typography>
@@ -286,10 +388,23 @@ export default function Templates() {
                           color={template.isActive ? 'success' : 'default'}
                           size="small"
                         />
+                        {getMetaStatusBadge(template)}
                       </Box>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Enviar após {template.delayMinutes} minutos
                       </Typography>
+                      {template.syncedAt && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Última sincronização: {new Date(template.syncedAt).toLocaleString('pt-BR')}
+                        </Typography>
+                      )}
+                      {template.metaStatus === 'rejected' && template.metaRejectionReason && (
+                        <Alert severity="error" sx={{ mt: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            <strong>Rejeitado pela Meta:</strong> {template.metaRejectionReason}
+                          </Typography>
+                        </Alert>
+                      )}
                     </Box>
                   </Box>
 
