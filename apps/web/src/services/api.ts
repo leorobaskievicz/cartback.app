@@ -15,6 +15,11 @@ import type {
   Subscription,
   PaymentCheckout,
   PaymentHistory,
+  WhatsAppOfficialCredential,
+  WhatsAppOfficialTemplate,
+  WhatsAppOfficialLog,
+  WhatsAppOfficialLogStats,
+  TemplateComponent,
 } from '../types'
 
 const api = axios.create({
@@ -249,4 +254,71 @@ export const plansApi = {
   cancel: () => api.post<ApiResponse<{ message: string }>>('/subscription/cancel'),
 
   getPayments: () => api.get<ApiResponse<PaymentHistory[]>>('/subscription/payments'),
+}
+
+// WhatsApp Official API
+export const whatsappOfficialApi = {
+  // Credenciais
+  getCredentials: () =>
+    api.get<ApiResponse<{ configured: boolean; credential: WhatsAppOfficialCredential | null }>>(
+      '/whatsapp-official/credentials'
+    ),
+
+  saveCredentials: (data: {
+    phoneNumberId: string
+    wabaId: string
+    accessToken: string
+    webhookVerifyToken: string
+  }) =>
+    api.post<ApiResponse<WhatsAppOfficialCredential & { message: string }>>(
+      '/whatsapp-official/credentials',
+      data
+    ),
+
+  deleteCredentials: () =>
+    api.delete<ApiResponse<{ message: string }>>('/whatsapp-official/credentials'),
+
+  verifyCredentials: () =>
+    api.post<ApiResponse<{ valid: boolean; phoneNumber?: string; displayName?: string; error?: string }>>(
+      '/whatsapp-official/credentials/verify'
+    ),
+
+  // Templates
+  listTemplates: () =>
+    api.get<ApiResponse<WhatsAppOfficialTemplate[]>>('/whatsapp-official/templates'),
+
+  getTemplate: (id: number) =>
+    api.get<ApiResponse<WhatsAppOfficialTemplate>>(`/whatsapp-official/templates/${id}`),
+
+  createTemplate: (data: {
+    name: string
+    displayName?: string
+    category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+    language: string
+    components: TemplateComponent[]
+  }) =>
+    api.post<ApiResponse<WhatsAppOfficialTemplate & { message: string }>>(
+      '/whatsapp-official/templates',
+      data
+    ),
+
+  deleteTemplate: (id: number) =>
+    api.delete<ApiResponse<{ message: string }>>(`/whatsapp-official/templates/${id}`),
+
+  syncTemplates: () =>
+    api.post<ApiResponse<{ synced: number; created: number; updated: number; message: string }>>(
+      '/whatsapp-official/templates/sync'
+    ),
+
+  // Logs
+  listLogs: (params?: { page?: number; perPage?: number; status?: string; templateName?: string; phone?: string }) =>
+    api.get<ApiResponse<PaginatedResponse<WhatsAppOfficialLog>>>('/whatsapp-official/logs', {
+      params,
+    }),
+
+  getLog: (id: number) =>
+    api.get<ApiResponse<WhatsAppOfficialLog>>(`/whatsapp-official/logs/${id}`),
+
+  getLogStats: () =>
+    api.get<ApiResponse<WhatsAppOfficialLogStats>>('/whatsapp-official/logs/stats'),
 }

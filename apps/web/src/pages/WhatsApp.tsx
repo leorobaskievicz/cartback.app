@@ -7,40 +7,136 @@ import {
   Button,
   Alert,
   Skeleton,
-  Grid,
-  LinearProgress,
   Chip,
+  ToggleButton,
+  ToggleButtonGroup,
+  Divider,
 } from '@mui/material'
 import {
   QrCode,
   CheckCircle,
   PhoneAndroid,
   Sync,
-  Warning,
-  Error as ErrorIcon,
-  CheckCircleOutline,
-  TrendingUp,
+  VerifiedUser,
+  Info,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { whatsappApi } from '../services/api'
-import type { WhatsAppInstance, WhatsAppHealthMetrics } from '../types'
+import type { WhatsAppInstance } from '../types'
 import LoadingButton from '../components/common/LoadingButton'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import EmptyState from '../components/common/EmptyState'
-import HealthScoreCard from '../components/whatsapp/HealthScoreCard'
-import TierUsageCard from '../components/whatsapp/TierUsageCard'
-import AlertsList from '../components/whatsapp/AlertsList'
-import QualityMetricsGrid from '../components/whatsapp/QualityMetricsGrid'
+import WhatsAppOfficialSetup from '../components/whatsapp/official/WhatsAppOfficialSetup'
+
+type ApiMode = 'unofficial' | 'official'
+
+const API_MODE_KEY = 'whatsapp_api_mode'
 
 export default function WhatsApp() {
+  const [apiMode, setApiMode] = useState<ApiMode>(() => {
+    return (localStorage.getItem(API_MODE_KEY) as ApiMode) || 'unofficial'
+  })
+
+  const handleApiModeChange = (_: React.MouseEvent<HTMLElement>, newMode: ApiMode | null) => {
+    if (newMode) {
+      setApiMode(newMode)
+      localStorage.setItem(API_MODE_KEY, newMode)
+    }
+  }
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom fontWeight={700}>
+            WhatsApp
+          </Typography>
+          <Typography color="text.secondary">
+            Configure seu WhatsApp para enviar mensagens de recuperação de carrinhos
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Seletor de API */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            Escolha o tipo de integração:
+          </Typography>
+
+          <ToggleButtonGroup
+            value={apiMode}
+            exclusive
+            onChange={handleApiModeChange}
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="unofficial" sx={{ px: 3, py: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <QrCode fontSize="small" />
+                  <Typography variant="body2" fontWeight={600}>API Não Oficial</Typography>
+                  <Chip label="Evolution API" size="small" color="primary" />
+                </Box>
+                <Typography variant="caption" color="text.secondary" align="left">
+                  Conecte via QR Code. Mais fácil, sem aprovação.
+                </Typography>
+              </Box>
+            </ToggleButton>
+            <ToggleButton value="official" sx={{ px: 3, py: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <VerifiedUser fontSize="small" />
+                  <Typography variant="body2" fontWeight={600}>API Oficial</Typography>
+                  <Chip label="Meta Business" size="small" color="success" />
+                </Box>
+                <Typography variant="caption" color="text.secondary" align="left">
+                  Via Meta Business Platform. Mais confiável e escalável.
+                </Typography>
+              </Box>
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Divider sx={{ my: 2 }} />
+
+          {apiMode === 'unofficial' ? (
+            <Alert severity="info" icon={<Info />}>
+              <Typography variant="body2">
+                <strong>API Não Oficial (Evolution API):</strong> Conecte um número WhatsApp pessoal ou comercial via QR Code.
+                Ideal para quem está começando. Não requer conta na Meta Business Platform.
+              </Typography>
+            </Alert>
+          ) : (
+            <Alert severity="success" icon={<VerifiedUser />}>
+              <Typography variant="body2">
+                <strong>API Oficial (Meta Business):</strong> Integração direta com a Meta via WhatsApp Business Platform.
+                Requer conta verificada no Meta Business e templates aprovados. Mais estável, sem risco de banimento.
+              </Typography>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Conteúdo da API selecionada */}
+      {apiMode === 'unofficial' ? (
+        <UnofficialApiSection />
+      ) : (
+        <WhatsAppOfficialSetup />
+      )}
+    </Box>
+  )
+}
+
+// ==============================
+// Seção da API Não Oficial (Evolution)
+// ==============================
+
+function UnofficialApiSection() {
   const [instance, setInstance] = useState<WhatsAppInstance | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [qrCodeWasShown, setQrCodeWasShown] = useState(false)
   const [loading, setLoading] = useState(true)
   const [disconnectLoading, setDisconnectLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [healthMetrics, setHealthMetrics] = useState<WhatsAppHealthMetrics | null>(null)
-  const [healthLoading, setHealthLoading] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
 
   useEffect(() => {
@@ -52,15 +148,6 @@ export default function WhatsApp() {
       const interval = setInterval(() => {
         pollStatus()
       }, 3000)
-      return () => clearInterval(interval)
-    } else {
-      // Carregar health metrics quando conectado
-      loadHealthMetrics()
-
-      // Atualizar a cada 30 segundos
-      const interval = setInterval(() => {
-        loadHealthMetrics()
-      }, 30000)
       return () => clearInterval(interval)
     }
   }, [instance])
@@ -92,33 +179,9 @@ export default function WhatsApp() {
         setQrCodeWasShown(true)
       }
     } catch (error: any) {
-      // Se não tem instância ainda, ignorar erro silenciosamente
       if (error.response?.status !== 404) {
         console.error('Error loading QR code:', error)
       }
-    }
-  }
-
-  const loadHealthMetrics = async () => {
-    if (healthLoading) return
-
-    setHealthLoading(true)
-    try {
-      console.log('🔍 Loading health metrics...')
-      const res = await whatsappApi.health()
-      console.log('📊 Health metrics response:', res.data.data)
-
-      // Se não tem hasInstance, significa que retornou os dados completos
-      if (!('hasInstance' in res.data.data)) {
-        setHealthMetrics(res.data.data as WhatsAppHealthMetrics)
-        console.log('✅ Health metrics loaded successfully')
-      } else {
-        console.log('⚠️ No instance found')
-      }
-    } catch (error: any) {
-      console.error('❌ Error loading health metrics:', error)
-    } finally {
-      setHealthLoading(false)
     }
   }
 
@@ -126,34 +189,23 @@ export default function WhatsApp() {
     setLoading(true)
     setQrCodeWasShown(false)
     try {
-      // Gerar um nome de instância único baseado no tenant
       const instanceName = `cartback_${Date.now()}`
-
       enqueueSnackbar('Criando instância do WhatsApp...', { variant: 'info' })
-
       await whatsappApi.connect({ instanceName })
-
-      enqueueSnackbar(
-        'Instância criada! Aguarde enquanto geramos o QR Code...',
-        { variant: 'success', autoHideDuration: 5000 }
-      )
-
-      // Recarregar instância após conectar
+      enqueueSnackbar('Instância criada! Aguarde enquanto geramos o QR Code...', {
+        variant: 'success',
+        autoHideDuration: 5000,
+      })
       await loadInstance()
-
-      // Forçar busca imediata do QR Code
       await loadQrCode()
     } catch (error: any) {
       const errorMsg = error.response?.data?.error?.message || 'Erro ao conectar WhatsApp'
       const errorCode = error.response?.data?.error?.code
-
       if (errorCode === 'ALREADY_CONNECTED') {
         enqueueSnackbar('WhatsApp já está conectado', { variant: 'warning' })
       } else {
         enqueueSnackbar(errorMsg, { variant: 'error' })
       }
-
-      console.error('Connect error:', error.response?.data)
     } finally {
       setLoading(false)
     }
@@ -163,17 +215,14 @@ export default function WhatsApp() {
     try {
       const res = await whatsappApi.status()
       const newInstance = res.data.data.instance
-
       if (newInstance?.status === 'connected' && instance?.status !== 'connected') {
         enqueueSnackbar('WhatsApp conectado com sucesso!', { variant: 'success' })
       }
-
       setInstance(newInstance)
-
       if (newInstance && newInstance.status !== 'connected') {
         await loadQrCode()
       }
-    } catch (error: any) {
+    } catch {
       // Silent fail for polling
     }
   }
@@ -188,7 +237,7 @@ export default function WhatsApp() {
       setConfirmOpen(false)
       enqueueSnackbar('WhatsApp desconectado', { variant: 'success' })
       await loadInstance()
-    } catch (error: any) {
+    } catch {
       enqueueSnackbar('Erro ao desconectar', { variant: 'error' })
     } finally {
       setDisconnectLoading(false)
@@ -197,29 +246,17 @@ export default function WhatsApp() {
 
   if (loading) {
     return (
-      <Box>
-        <Typography variant="h4" gutterBottom fontWeight={700}>
-          WhatsApp
-        </Typography>
-        <Card>
-          <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
-            <Skeleton variant="rectangular" width={256} height={256} sx={{ borderRadius: 2 }} />
-            <Skeleton variant="text" width={200} sx={{ mt: 2 }} />
-          </CardContent>
-        </Card>
-      </Box>
+      <Card>
+        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
+          <Skeleton variant="rectangular" width={256} height={256} sx={{ borderRadius: 2 }} />
+          <Skeleton variant="text" width={200} sx={{ mt: 2 }} />
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom fontWeight={700}>
-        WhatsApp
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>
-        Conecte seu WhatsApp para enviar mensagens de recuperação
-      </Typography>
-
+    <>
       <Card>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
           {instance?.status === 'connected' ? (
@@ -249,8 +286,8 @@ export default function WhatsApp() {
                 </Typography>
               </Box>
               <Alert severity="success" sx={{ maxWidth: 500, mb: 2 }}>
-                Seu WhatsApp está conectado e pronto para enviar mensagens de recuperação de
-                carrinhos abandonados.
+                Seu WhatsApp está conectado e pronto para enviar mensagens de recuperação de carrinhos
+                abandonados.
               </Alert>
               <LoadingButton
                 variant="outlined"
@@ -343,7 +380,7 @@ export default function WhatsApp() {
             <EmptyState
               icon={<QrCode />}
               title="WhatsApp não conectado"
-              description="Clique no botão abaixo para criar uma instância e conectar seu WhatsApp via Evolution Manager"
+              description="Clique no botão abaixo para criar uma instância e conectar seu WhatsApp via Evolution API"
               action={{
                 label: 'Conectar WhatsApp',
                 onClick: handleConnect,
@@ -352,73 +389,6 @@ export default function WhatsApp() {
           )}
         </CardContent>
       </Card>
-
-      {/* Health Metrics - Só aparece quando conectado */}
-      {/* ⚠️ TEMPORARIAMENTE DESABILITADO - Ocultar indicadores de qualidade */}
-      {/*
-      {instance?.status === 'connected' && healthMetrics && (
-        <Box sx={{ mt: 4 }}>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
-              Monitoramento de Saúde
-            </Typography>
-            <Typography color="text.secondary">
-              Acompanhe a saúde da sua integração e evite bloqueios
-            </Typography>
-          </Box>
-
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <HealthScoreCard
-                score={healthMetrics.health.score}
-                qualityRating={healthMetrics.health.qualityRating}
-                isHealthy={healthMetrics.health.isHealthy}
-                isWarmingUp={healthMetrics.health.isWarmingUp}
-                daysSinceConnection={healthMetrics.health.daysSinceConnection}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TierUsageCard
-                current={healthMetrics.tier.current}
-                dailyLimit={healthMetrics.tier.dailyLimit}
-                usageToday={healthMetrics.tier.usageToday}
-                usagePercent={healthMetrics.tier.usagePercent}
-                nearLimit={healthMetrics.tier.nearLimit}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <AlertsList alerts={healthMetrics.alerts} />
-            </Grid>
-
-            <Grid item xs={12}>
-              <QualityMetricsGrid
-                deliveryRate={healthMetrics.quality.deliveryRate}
-                responseRate={healthMetrics.quality.responseRate}
-                failureRate={healthMetrics.quality.failureRate}
-                messagesDelivered={healthMetrics.quality.messagesDelivered}
-                messagesRead={healthMetrics.quality.messagesRead}
-                messagesFailed={healthMetrics.quality.messagesFailed}
-                userResponses={healthMetrics.quality.userResponses}
-                metricsLastMinute={healthMetrics.metrics.lastMinute}
-                metricsLastHour={healthMetrics.metrics.lastHour}
-                metricsLast24h={healthMetrics.metrics.last24h}
-                metricsLast7days={healthMetrics.metrics.last7days}
-              />
-            </Grid>
-          </Grid>
-
-          {healthMetrics.lastUpdate && (
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                Última atualização: {new Date(healthMetrics.lastUpdate).toLocaleString('pt-BR')}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      )}
-      */}
 
       <ConfirmDialog
         open={confirmOpen}
@@ -429,6 +399,6 @@ export default function WhatsApp() {
         loading={disconnectLoading}
         confirmText="Desconectar"
       />
-    </Box>
+    </>
   )
 }
