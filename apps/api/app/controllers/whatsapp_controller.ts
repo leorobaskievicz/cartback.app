@@ -113,25 +113,19 @@ export default class WhatsappController {
         })
       }
 
-      // 2. DELETAR TODAS AS INSTÂNCIAS ANTIGAS (banco + Evolution API)
-      console.log('🧹 Cleaning old instances...')
+      // 2. DELETAR SOMENTE AS INSTÂNCIAS DO TENANT ATUAL (banco + Evolution API)
+      // IMPORTANTE: NÃO deletar instâncias de outros tenants da Evolution API
+      console.log('🧹 Cleaning old instances for this tenant only...')
 
-      // Listar todas do Evolution API
-      const evolutionInstances = await evolutionApiService.fetchAllInstances()
-
-      // Deletar todas da Evolution API
-      for (const evoInstance of evolutionInstances) {
-        try {
-          console.log(`  Deleting ${evoInstance.name} from Evolution API...`)
-          await evolutionApiService.deleteInstance(evoInstance.name)
-        } catch (error) {
-          console.log(`  Failed to delete ${evoInstance.name} (may not exist)`)
-        }
-      }
-
-      // Deletar todas do banco
       const dbInstances = await WhatsappInstance.query().where('tenant_id', tenant.id)
+
       for (const dbInstance of dbInstances) {
+        try {
+          console.log(`  Deleting ${dbInstance.instanceName} from Evolution API...`)
+          await evolutionApiService.deleteInstance(dbInstance.instanceName)
+        } catch (error) {
+          console.log(`  Failed to delete ${dbInstance.instanceName} from Evolution API (may not exist)`)
+        }
         await dbInstance.delete()
       }
 
