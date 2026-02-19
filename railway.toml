@@ -1,0 +1,16 @@
+# Railway config para o serviço WEB (Root Directory = / no Railway)
+# O serviço API usa apps/api/railway.toml (Root Directory = apps/api)
+# O serviço Evolution usa apps/evolution/railway.toml (Root Directory = apps/evolution)
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "apps/web/Dockerfile"
+
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[healthcheck]
+path = "/"
+timeout = 10
+interval = 30
