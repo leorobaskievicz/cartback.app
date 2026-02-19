@@ -2,8 +2,10 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Tenant from '#models/tenant'
 import StoreIntegration from '#models/store_integration'
 import WhatsappInstance from '#models/whatsapp_instance'
+import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import customWebhookService from '#services/custom_webhook_service'
 import evolutionApiService from '#services/evolution_api_service'
+import whatsappOfficialService from '#services/whatsapp_official_service'
 
 export default class WhatsappSendWebhookController {
   /**
@@ -85,13 +87,20 @@ export default class WhatsappSendWebhookController {
       return response.badRequest({ error: 'O campo "message" é obrigatório' })
     }
 
-    // Buscar instância WhatsApp conectada do tenant
+    // Buscar instância WhatsApp conectada do tenant (Evolution API ou API Oficial)
     const whatsappInstance = await WhatsappInstance.query()
       .where('tenant_id', tenant.id)
       .where('status', 'connected')
       .first()
 
-    if (!whatsappInstance) {
+    const officialCredential = !whatsappInstance
+      ? await WhatsappOfficialCredential.query()
+          .where('tenant_id', tenant.id)
+          .where('is_active', true)
+          .first()
+      : null
+
+    if (!whatsappInstance && !officialCredential) {
       console.error(
         `[WhatsApp Send Webhook] Nenhuma instância WhatsApp conectada para tenant ${tenant.id}`
       )
@@ -100,29 +109,56 @@ export default class WhatsappSendWebhookController {
       })
     }
 
-    // Enviar mensagem via Evolution API
+    // Enviar mensagem
     try {
-      console.log(
-        `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via instância ${whatsappInstance.instanceName}`
-      )
+      if (whatsappInstance) {
+        console.log(
+          `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via Evolution API (instância ${whatsappInstance.instanceName})`
+        )
 
-      const result = await evolutionApiService.sendText(
-        whatsappInstance.instanceName,
-        phone.trim(),
-        message.trim()
-      )
+        const result = await evolutionApiService.sendText(
+          whatsappInstance.instanceName,
+          phone.trim(),
+          message.trim()
+        )
 
-      console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone}`)
+        console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone}`)
 
-      return response.ok({
-        success: true,
-        message: 'Message sent successfully',
-        data: {
-          phone: phone.trim(),
-          instance: whatsappInstance.instanceName,
-          messageId: result?.key?.id ?? null,
-        },
-      })
+        return response.ok({
+          success: true,
+          message: 'Message sent successfully',
+          data: {
+            phone: phone.trim(),
+            instance: whatsappInstance.instanceName,
+            messageId: result?.key?.id ?? null,
+          },
+        })
+      } else {
+        console.log(
+          `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via API Oficial`
+        )
+
+        const result = await whatsappOfficialService.sendTextMessage(
+          {
+            phoneNumberId: officialCredential!.phoneNumberId,
+            wabaId: officialCredential!.wabaId,
+            accessToken: officialCredential!.accessToken,
+          },
+          phone.trim(),
+          message.trim()
+        )
+
+        console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone} via API Oficial`)
+
+        return response.ok({
+          success: true,
+          message: 'Message sent successfully',
+          data: {
+            phone: phone.trim(),
+            messageId: result?.messages?.[0]?.id ?? null,
+          },
+        })
+      }
     } catch (error: any) {
       console.error(`[WhatsApp Send Webhook] Erro ao enviar mensagem:`, error.message)
 
