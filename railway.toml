@@ -3,7 +3,7 @@
 # O serviço Evolution usa apps/evolution/railway.toml (Root Directory = apps/evolution)
 
 [build]
-builder = "dockerfile"
+builder = "DOCKERFILE"
 dockerfilePath = "apps/web/Dockerfile"
 
 [deploy]
