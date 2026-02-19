@@ -29,6 +29,34 @@ export default class MessageTemplate extends BaseModel {
   @column()
   declare sortOrder: number
 
+  // Meta WhatsApp Official API fields
+  @column()
+  declare metaTemplateId: string | null
+
+  @column()
+  declare metaTemplateName: string | null
+
+  @column()
+  declare metaStatus: 'pending' | 'approved' | 'rejected' | 'not_synced'
+
+  @column()
+  declare metaLanguage: string
+
+  @column()
+  declare metaCategory: 'MARKETING' | 'UTILITY'
+
+  @column({
+    prepare: (value: any) => (value ? JSON.stringify(value) : null),
+    consume: (value: string | null) => (value ? JSON.parse(value) : null),
+  })
+  declare metaComponents: any | null
+
+  @column()
+  declare metaRejectionReason: string | null
+
+  @column.dateTime()
+  declare syncedAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

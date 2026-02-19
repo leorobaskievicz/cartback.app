@@ -5,6 +5,7 @@ import WhatsappInstance from '#models/whatsapp_instance'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import evolutionApiService from '#services/evolution_api_service'
 import whatsappOfficialService from '#services/whatsapp_official_service'
+import templateSyncService from '#services/template_sync_service'
 import planService from '#services/plan_service'
 import {
   createMessageTemplateValidator,
@@ -66,7 +67,26 @@ export default class MessageTemplatesController {
       content: data.content,
       isActive: data.isActive ?? true,
       sortOrder: (maxSortOrder.$extras.max || 0) + 1,
+      metaStatus: 'not_synced',
+      metaLanguage: 'pt_BR',
+      metaCategory: 'MARKETING',
     })
+
+    // Auto-sync com Meta se API Oficial está ativa
+    const officialCredential = await WhatsappOfficialCredential.query()
+      .where('tenant_id', tenant.id)
+      .where('is_active', true)
+      .first()
+
+    if (officialCredential) {
+      try {
+        await templateSyncService.syncTemplateToMeta(template, officialCredential)
+        console.log(`✅ Template ${template.id} auto-synced to Meta`)
+      } catch (error) {
+        console.error(`⚠️ Failed to auto-sync template to Meta:`, error)
+        // Não falhar a criação do template, apenas logar erro
+      }
+    }
 
     return response.created({
       success: true,
@@ -139,6 +159,39 @@ export default class MessageTemplatesController {
       success: true,
       data: { message: 'Templates reordered successfully' },
     })
+  }
+
+  /**
+   * POST /api/templates/sync
+   * Sincronização completa bidirecional com Meta WhatsApp Official API
+   */
+  async sync({ auth, response }: HttpContext) {
+    const user = auth.user!
+    const tenant = await Tenant.findOrFail(user.tenantId)
+
+    try {
+      const result = await templateSyncService.fullSync(tenant.id)
+
+      return response.ok({
+        success: true,
+        data: {
+          message: 'Template sync completed successfully',
+          sentToMeta: result.sentToMeta,
+          importedFromMeta: result.importedFromMeta,
+          updated: result.updated,
+        },
+      })
+    } catch (error: any) {
+      console.error('Template sync failed:', error)
+
+      return response.badRequest({
+        success: false,
+        error: {
+          code: 'SYNC_FAILED',
+          message: error.message || 'Failed to sync templates',
+        },
+      })
+    }
   }
 
   /**
