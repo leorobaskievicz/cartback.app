@@ -46,8 +46,25 @@ export default class MessageTemplate extends BaseModel {
   declare metaCategory: 'MARKETING' | 'UTILITY'
 
   @column({
-    prepare: (value: any) => (value ? JSON.stringify(value) : null),
-    consume: (value: string | null) => (value ? JSON.parse(value) : null),
+    prepare: (value: any) => {
+      if (!value) return null
+      // Se já é string, retorna como está
+      if (typeof value === 'string') return value
+      // Se é objeto, stringifica
+      return JSON.stringify(value)
+    },
+    consume: (value: string | null) => {
+      if (!value) return null
+      // Se já é objeto (improvável mas previne erro)
+      if (typeof value === 'object') return value
+      // Se é string, faz parse
+      try {
+        return JSON.parse(value)
+      } catch (error) {
+        console.error('Failed to parse metaComponents JSON:', value, error)
+        return null
+      }
+    },
   })
   declare metaComponents: any | null
 

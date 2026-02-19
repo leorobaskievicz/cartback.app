@@ -183,12 +183,15 @@ export default class MessageTemplatesController {
       })
     } catch (error: any) {
       console.error('Template sync failed:', error)
+      console.error('Error stack:', error.stack)
+      console.error('Error details:', JSON.stringify(error, null, 2))
 
       return response.badRequest({
         success: false,
         error: {
           code: 'SYNC_FAILED',
-          message: error.message || 'Failed to sync templates',
+          message: error.message || error.toString() || 'Failed to sync templates',
+          details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         },
       })
     }
