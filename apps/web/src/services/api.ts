@@ -181,6 +181,12 @@ export const templatesApi = {
       `/templates/${id}/test`,
       { phoneNumber }
     ),
+
+  sync: () =>
+    api.post<
+      ApiResponse<{ message: string; sentToMeta: number; importedFromMeta: number; updated: number }>
+    >('/templates/sync'
+    ),
 }
 
 // Carts API
