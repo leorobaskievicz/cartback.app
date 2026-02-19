@@ -11,6 +11,37 @@ interface TemplateVariable {
 
 export class TemplateSyncService {
   /**
+   * Valida se o token ainda é válido (não expirou)
+   * @throws Error se o token estiver expirado
+   */
+  private validateTokenExpiration(credential: WhatsappOfficialCredential): void {
+    if (!credential.tokenExpiresAt) {
+      // Token permanente (System User), sem data de expiração
+      return
+    }
+
+    const now = DateTime.now()
+    const expiresAt = credential.tokenExpiresAt
+
+    if (expiresAt <= now) {
+      const daysExpired = Math.ceil(now.diff(expiresAt, 'days').days)
+      throw new Error(
+        `Token de acesso expirado há ${daysExpired} dia(s). ` +
+          `Gere um novo token permanente (System User) no Meta Business Manager.`
+      )
+    }
+
+    // Aviso se está próximo da expiração (7 dias)
+    const daysUntilExpiry = Math.ceil(expiresAt.diff(now, 'days').days)
+    if (daysUntilExpiry <= 7) {
+      console.warn(
+        `⚠️ Token expira em ${daysUntilExpiry} dia(s) (${expiresAt.toLocaleString()}). ` +
+          `Considere gerar um token permanente.`
+      )
+    }
+  }
+
+  /**
    * Extrai variáveis do conteúdo do template CartBack
    * Converte {{nome}}, {{produtos}}, {{link}}, {{total}} → {{1}}, {{2}}, {{3}}, {{4}}
    */
@@ -81,6 +112,9 @@ export class TemplateSyncService {
   ): Promise<void> {
     console.log(`🔄 Syncing template "${template.name}" (ID ${template.id}) to Meta`)
 
+    // Validar se token não expirou
+    this.validateTokenExpiration(credential)
+
     // Se já tem metaTemplateId e está approved, não reenviar
     if (template.metaTemplateId && template.metaStatus === 'approved') {
       console.log(`✅ Template already approved on Meta, skipping`)
@@ -137,6 +171,9 @@ export class TemplateSyncService {
     credential: WhatsappOfficialCredential
   ): Promise<number> {
     console.log(`📥 Importing templates from Meta for tenant ${tenantId}`)
+
+    // Validar se token não expirou
+    this.validateTokenExpiration(credential)
 
     try {
       const metaTemplates = await whatsappOfficialService.listTemplates({
@@ -251,6 +288,9 @@ export class TemplateSyncService {
     if (!credential) {
       throw new Error('No active WhatsApp Official API credential found')
     }
+
+    // Validar se token não expirou (uma vez no início)
+    this.validateTokenExpiration(credential)
 
     let sentToMeta = 0
     let updated = 0

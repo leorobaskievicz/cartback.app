@@ -22,6 +22,9 @@ export default class WhatsappOfficialCredential extends BaseModel {
   @column()
   declare accessToken: string
 
+  @column.dateTime()
+  declare tokenExpiresAt: DateTime | null
+
   @column()
   declare webhookVerifyToken: string
 

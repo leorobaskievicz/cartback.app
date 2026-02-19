@@ -76,6 +76,19 @@ export async function sendWhatsappOfficialMessage(
     return
   }
 
+  // 4.1. Validar se token não expirou
+  if (credential.tokenExpiresAt) {
+    const now = DateTime.now()
+    if (credential.tokenExpiresAt <= now) {
+      const daysExpired = Math.ceil(now.diff(credential.tokenExpiresAt, 'days').days)
+      officialLog.status = 'failed'
+      officialLog.errorMessage = `Token de acesso expirado há ${daysExpired} dia(s). Gere um novo token permanente.`
+      await officialLog.save()
+      console.log(`[OfficialMsg] Token expirado para credencial ${credentialId}`)
+      return
+    }
+  }
+
   // 5. Verificar limite de mensagens
   const subscription = await Subscription.query().where('tenant_id', cart.tenantId).first()
   if (subscription && subscription.messagesUsed >= subscription.messagesLimit) {

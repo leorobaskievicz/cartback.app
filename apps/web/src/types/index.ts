@@ -250,6 +250,7 @@ export interface WhatsAppOfficialCredential {
   status: 'active' | 'inactive' | 'error'
   lastError: string | null
   isActive: boolean
+  tokenExpiresAt: string | null // Data de expiração do token (null = permanente)
   createdAt: string
   updatedAt: string
 }

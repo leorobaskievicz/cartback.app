@@ -171,60 +171,129 @@ export default function WhatsAppOfficialSetup() {
     <Box>
       {/* Status da Conexão */}
       {configured && credential && (
-        <Card sx={{ mb: 3, border: '1px solid', borderColor: credential.status === 'active' ? 'success.main' : 'error.main' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {credential.status === 'active' ? (
-                  <CheckCircle color="success" sx={{ fontSize: 40 }} />
-                ) : (
-                  <ErrorIcon color="error" sx={{ fontSize: 40 }} />
-                )}
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {credential.displayName || 'API Oficial Configurada'}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                    <PhoneAndroid sx={{ fontSize: 16 }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {credential.phoneNumber || 'Número não disponível'}
-                    </Typography>
-                    <Chip
-                      label={credential.status === 'active' ? 'Ativo' : credential.status === 'error' ? 'Erro' : 'Inativo'}
-                      color={credential.status === 'active' ? 'success' : credential.status === 'error' ? 'error' : 'default'}
-                      size="small"
-                    />
-                  </Box>
-                  {credential.lastError && (
-                    <Typography variant="caption" color="error.main" sx={{ mt: 0.5, display: 'block' }}>
-                      Erro: {credential.lastError}
-                    </Typography>
+        <>
+          <Card sx={{ mb: 3, border: '1px solid', borderColor: credential.status === 'active' ? 'success.main' : 'error.main' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {credential.status === 'active' ? (
+                    <CheckCircle color="success" sx={{ fontSize: 40 }} />
+                  ) : (
+                    <ErrorIcon color="error" sx={{ fontSize: 40 }} />
                   )}
+                  <Box>
+                    <Typography variant="h6" fontWeight={600}>
+                      {credential.displayName || 'API Oficial Configurada'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <PhoneAndroid sx={{ fontSize: 16 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {credential.phoneNumber || 'Número não disponível'}
+                      </Typography>
+                      <Chip
+                        label={credential.status === 'active' ? 'Ativo' : credential.status === 'error' ? 'Erro' : 'Inativo'}
+                        color={credential.status === 'active' ? 'success' : credential.status === 'error' ? 'error' : 'default'}
+                        size="small"
+                      />
+                    </Box>
+                    {credential.lastError && (
+                      <Typography variant="caption" color="error.main" sx={{ mt: 0.5, display: 'block' }}>
+                        Erro: {credential.lastError}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <LoadingButton
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Refresh />}
+                    onClick={handleVerify}
+                    loading={verifying}
+                  >
+                    Verificar
+                  </LoadingButton>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<Delete />}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Remover
+                  </Button>
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <LoadingButton
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Refresh />}
-                  onClick={handleVerify}
-                  loading={verifying}
-                >
-                  Verificar
-                </LoadingButton>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<Delete />}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Remover
-                </Button>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Token Expiration Warning */}
+          {credential.tokenExpiresAt && (() => {
+            const expiresAt = new Date(credential.tokenExpiresAt)
+            const now = new Date()
+            const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            const isExpired = daysUntilExpiry <= 0
+            const isNearExpiry = daysUntilExpiry > 0 && daysUntilExpiry <= 7
+
+            if (isExpired) {
+              return (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    ⚠️ Token de Acesso Expirado
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    Seu token de acesso expirou em {expiresAt.toLocaleDateString('pt-BR')}.
+                    Gere um novo token permanente (System User) no Meta Business Manager e atualize suas credenciais.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    href="https://business.facebook.com/settings/system-users"
+                    target="_blank"
+                    sx={{ mt: 1 }}
+                  >
+                    Gerar Token Permanente
+                  </Button>
+                </Alert>
+              )
+            }
+
+            if (isNearExpiry) {
+              return (
+                <Alert severity="warning" sx={{ mb: 3 }}>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    ⚠️ Token de Acesso Próximo da Expiração
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    Seu token expira em {daysUntilExpiry} dia(s) ({expiresAt.toLocaleDateString('pt-BR')}).
+                    Recomendamos gerar um token permanente (System User) para evitar interrupções.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="warning"
+                    href="https://business.facebook.com/settings/system-users"
+                    target="_blank"
+                    sx={{ mt: 1 }}
+                  >
+                    Gerar Token Permanente
+                  </Button>
+                </Alert>
+              )
+            }
+
+            return null
+          })()}
+
+          {!credential.tokenExpiresAt && credential.status === 'active' && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                ✅ Token Permanente Detectado - Seu token não possui data de expiração (System User Token).
+              </Typography>
+            </Alert>
+          )}
+        </>
       )}
 
       {/* Abas quando configurado */}
