@@ -296,6 +296,8 @@ export const whatsappOfficialApi = {
     category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
     language: string
     components: TemplateComponent[]
+    triggerType?: 'abandoned_cart' | 'order_confirmation'
+    delayMinutes?: number
   }) =>
     api.post<ApiResponse<WhatsAppOfficialTemplate & { message: string }>>(
       '/whatsapp-official/templates',

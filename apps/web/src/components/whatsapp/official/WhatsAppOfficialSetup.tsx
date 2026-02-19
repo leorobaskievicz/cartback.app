@@ -29,6 +29,7 @@ import {
 import { useSnackbar } from 'notistack'
 import { whatsappOfficialApi } from '../../../services/api'
 import type { WhatsAppOfficialCredential } from '../../../types'
+import { useAuth } from '../../../contexts/AuthContext'
 import LoadingButton from '../../common/LoadingButton'
 import ConfirmDialog from '../../common/ConfirmDialog'
 import WhatsAppOfficialTemplates from './WhatsAppOfficialTemplates'
@@ -68,8 +69,10 @@ export default function WhatsAppOfficialSetup() {
   })
 
   const { enqueueSnackbar } = useSnackbar()
+  const { tenant } = useAuth()
 
-  const webhookUrl = `${window.location.origin.replace(/:\d+$/, ':3333')}/api/webhooks/whatsapp-official/[SEU_TENANT_UUID]`
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333/api'
+  const webhookUrl = `${apiUrl}/webhooks/whatsapp-official/${tenant?.uuid ?? ''}`
 
   useEffect(() => {
     loadCredentials()

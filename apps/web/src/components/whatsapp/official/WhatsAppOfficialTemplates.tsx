@@ -350,6 +350,8 @@ function CreateTemplateDialog({ open, onClose, onSuccess }: CreateTemplateDialog
     displayName: '',
     category: 'UTILITY' as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
     language: 'pt_BR',
+    triggerType: 'abandoned_cart' as 'abandoned_cart' | 'order_confirmation',
+    delayMinutes: 30,
     bodyText: '',
     footerText: '',
   })
@@ -382,9 +384,11 @@ function CreateTemplateDialog({ open, onClose, onSuccess }: CreateTemplateDialog
         category: form.category,
         language: form.language,
         components,
+        triggerType: form.triggerType,
+        delayMinutes: form.delayMinutes,
       })
       enqueueSnackbar('Template criado! Aguardando aprovação da Meta.', { variant: 'success' })
-      setForm({ name: '', displayName: '', category: 'UTILITY', language: 'pt_BR', bodyText: '', footerText: '' })
+      setForm({ name: '', displayName: '', category: 'UTILITY', language: 'pt_BR', triggerType: 'abandoned_cart', delayMinutes: 30, bodyText: '', footerText: '' })
       onSuccess()
     } catch (error: any) {
       const msg = error.response?.data?.error?.message || 'Erro ao criar template'
@@ -401,6 +405,8 @@ function CreateTemplateDialog({ open, onClose, onSuccess }: CreateTemplateDialog
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <Alert severity="info" sx={{ mb: 1 }}>
             Templates precisam ser aprovados pela Meta. Após criar, aguarde a revisão (geralmente algumas horas).
+            <br />
+            <strong>Variáveis disponíveis:</strong> {`{{1}}`} = nome, {`{{2}}`} = produto(s), {`{{3}}`} = link do carrinho, {`{{4}}`} = valor total
           </Alert>
           <TextField
             fullWidth
@@ -417,6 +423,28 @@ function CreateTemplateDialog({ open, onClose, onSuccess }: CreateTemplateDialog
             onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
             helperText="Nome amigável para identificação interna"
           />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Gatilho</InputLabel>
+              <Select
+                value={form.triggerType}
+                onChange={(e) => setForm((f) => ({ ...f, triggerType: e.target.value as any }))}
+                label="Gatilho"
+              >
+                <MenuItem value="abandoned_cart">Carrinho Abandonado</MenuItem>
+                <MenuItem value="order_confirmation">Confirmação de Pedido</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Delay (minutos)"
+              type="number"
+              value={form.delayMinutes}
+              onChange={(e) => setForm((f) => ({ ...f, delayMinutes: parseInt(e.target.value) || 0 }))}
+              helperText="Tempo após o evento"
+              inputProps={{ min: 0 }}
+            />
+          </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <FormControl fullWidth>
               <InputLabel>Categoria</InputLabel>
