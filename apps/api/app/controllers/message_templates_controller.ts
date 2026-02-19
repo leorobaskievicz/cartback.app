@@ -2,7 +2,9 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Tenant from '#models/tenant'
 import MessageTemplate from '#models/message_template'
 import WhatsappInstance from '#models/whatsapp_instance'
+import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import evolutionApiService from '#services/evolution_api_service'
+import whatsappOfficialService from '#services/whatsapp_official_service'
 import planService from '#services/plan_service'
 import {
   createMessageTemplateValidator,
@@ -161,13 +163,20 @@ export default class MessageTemplatesController {
       .where('tenant_id', tenant.id)
       .firstOrFail()
 
-    // Verificar se WhatsApp está conectado
+    // Verificar se WhatsApp está conectado (Evolution API ou API Oficial)
     const whatsappInstance = await WhatsappInstance.query()
       .where('tenant_id', tenant.id)
       .where('status', 'connected')
       .first()
 
-    if (!whatsappInstance) {
+    const officialCredential = !whatsappInstance
+      ? await WhatsappOfficialCredential.query()
+          .where('tenant_id', tenant.id)
+          .where('is_active', true)
+          .first()
+      : null
+
+    if (!whatsappInstance && !officialCredential) {
       return response.badRequest({
         success: false,
         error: {
@@ -188,14 +197,23 @@ export default class MessageTemplatesController {
       // Adicionar cabeçalho indicando que é teste
       const messageWithHeader = `🧪 *MENSAGEM DE TESTE*\n\n${testMessage}\n\n_Esta é uma mensagem de teste do template "${template.name}"_`
 
-      // Enviar via Evolution API
-      console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber}`)
-
-      await evolutionApiService.sendText(
-        whatsappInstance.instanceName,
-        phoneNumber,
-        messageWithHeader
-      )
+      if (whatsappInstance) {
+        // Enviar via Evolution API
+        console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Evolution API`)
+        await evolutionApiService.sendText(whatsappInstance.instanceName, phoneNumber, messageWithHeader)
+      } else {
+        // Enviar via API Oficial
+        console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Official API`)
+        await whatsappOfficialService.sendTextMessage(
+          {
+            phoneNumberId: officialCredential!.phoneNumberId,
+            wabaId: officialCredential!.wabaId,
+            accessToken: officialCredential!.accessToken,
+          },
+          phoneNumber,
+          messageWithHeader
+        )
+      }
 
       console.log(`✅ Test message sent successfully`)
 
