@@ -200,16 +200,10 @@ export default class MessageTemplatesController {
       if (whatsappInstance) {
         // Enviar via Evolution API
         console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Evolution API`)
-
-        await evolutionApiService.sendText(
-          whatsappInstance.instanceName,
-          phoneNumber,
-          messageWithHeader
-        )
+        await evolutionApiService.sendText(whatsappInstance.instanceName, phoneNumber, messageWithHeader)
       } else {
         // Enviar via API Oficial
         console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Official API`)
-
         await whatsappOfficialService.sendTextMessage(
           {
             phoneNumberId: officialCredential!.phoneNumberId,

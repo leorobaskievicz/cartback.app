@@ -109,21 +109,17 @@ export default class WhatsappSendWebhookController {
       })
     }
 
-    // Enviar mensagem
     try {
       if (whatsappInstance) {
         console.log(
-          `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via Evolution API (instância ${whatsappInstance.instanceName})`
+          `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via Evolution API (${whatsappInstance.instanceName})`
         )
-
         const result = await evolutionApiService.sendText(
           whatsappInstance.instanceName,
           phone.trim(),
           message.trim()
         )
-
         console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone}`)
-
         return response.ok({
           success: true,
           message: 'Message sent successfully',
@@ -134,10 +130,7 @@ export default class WhatsappSendWebhookController {
           },
         })
       } else {
-        console.log(
-          `[WhatsApp Send Webhook] Enviando mensagem para ${phone} via API Oficial`
-        )
-
+        console.log(`[WhatsApp Send Webhook] Enviando mensagem para ${phone} via API Oficial`)
         const result = await whatsappOfficialService.sendTextMessage(
           {
             phoneNumberId: officialCredential!.phoneNumberId,
@@ -147,9 +140,7 @@ export default class WhatsappSendWebhookController {
           phone.trim(),
           message.trim()
         )
-
-        console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone} via API Oficial`)
-
+        console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada via API Oficial para ${phone}`)
         return response.ok({
           success: true,
           message: 'Message sent successfully',
