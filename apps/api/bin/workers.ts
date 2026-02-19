@@ -26,6 +26,9 @@ try {
         // Import and register all workers
         const { default: processAbandonedCart } = await import('#jobs/process_abandoned_cart')
         const { default: sendWhatsAppMessage } = await import('#jobs/send_whatsapp_message')
+        const { default: sendWhatsappOfficialMessage } = await import(
+          '#jobs/send_whatsapp_official_message'
+        )
         const { default: checkCartRecovered } = await import('#jobs/check_cart_recovered')
         const { default: pollNuvemshopAbandonedCarts } = await import(
           '#jobs/poll_nuvemshop_abandoned_carts'
@@ -33,6 +36,7 @@ try {
 
         queueService.registerWorker('process-abandoned-cart', processAbandonedCart)
         queueService.registerWorker('send-whatsapp-message', sendWhatsAppMessage)
+        queueService.registerWorker('send-whatsapp-official-message', sendWhatsappOfficialMessage)
         queueService.registerWorker('check-cart-recovered', checkCartRecovered)
         queueService.registerWorker('poll-nuvemshop-carts', pollNuvemshopAbandonedCarts)
 

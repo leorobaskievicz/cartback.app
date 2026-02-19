@@ -7,6 +7,7 @@ import WhatsappOfficialLog from './whatsapp_official_log.js'
 export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 export type TemplateStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
 export type TemplateHeaderType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | null
+export type TemplateTriggerType = 'abandoned_cart' | 'order_confirmation'
 
 export interface TemplateComponent {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
@@ -35,6 +36,12 @@ export default class WhatsappOfficialTemplate extends BaseModel {
 
   @column()
   declare tenantId: number
+
+  @column()
+  declare triggerType: TemplateTriggerType
+
+  @column()
+  declare delayMinutes: number
 
   @column()
   declare metaTemplateId: string | null

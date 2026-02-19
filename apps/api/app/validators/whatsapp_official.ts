@@ -51,5 +51,7 @@ export const createOfficialTemplateValidator = vine.compile(
     category: vine.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
     language: vine.string().trim().minLength(2).maxLength(10),
     components: vine.array(templateComponentSchema).minLength(1),
+    triggerType: vine.enum(['abandoned_cart', 'order_confirmation']).optional(),
+    delayMinutes: vine.number().min(0).max(10080).optional(), // max 7 dias
   })
 )

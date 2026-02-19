@@ -88,6 +88,8 @@ export default class WhatsappOfficialTemplatesController {
       // Salvar no banco
       const template = await WhatsappOfficialTemplate.create({
         tenantId: user.tenantId,
+        triggerType: (data as any).triggerType || 'abandoned_cart',
+        delayMinutes: (data as any).delayMinutes ?? 0,
         metaTemplateId: metaResult.id,
         name: data.name,
         displayName: data.displayName || data.name,

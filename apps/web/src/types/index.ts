@@ -265,6 +265,8 @@ export interface TemplateComponent {
 export interface WhatsAppOfficialTemplate {
   id: number
   tenantId: number
+  triggerType: 'abandoned_cart' | 'order_confirmation'
+  delayMinutes: number
   metaTemplateId: string | null
   name: string
   displayName: string | null
