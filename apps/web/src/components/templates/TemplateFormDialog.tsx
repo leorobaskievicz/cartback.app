@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -21,8 +21,26 @@ import {
   Chip,
   Tabs,
   Tab,
+  Card,
+  CardContent,
+  Stack,
+  Divider,
+  Tooltip,
 } from '@mui/material'
-import { Add, Delete, Image, VideoLibrary, Description, Link as LinkIcon } from '@mui/icons-material'
+import {
+  Add,
+  Delete,
+  Image,
+  VideoLibrary,
+  Description,
+  Link as LinkIcon,
+  Phone,
+  Reply,
+  SmartButton,
+  Close,
+  ContentCopy,
+  Visibility,
+} from '@mui/icons-material'
 import LoadingButton from '../common/LoadingButton'
 
 interface TemplateButton {
@@ -34,16 +52,15 @@ interface TemplateButton {
 
 interface TemplateFormData {
   name: string
-  content: string // Usado por Evolution API
+  content: string
   delayMinutes: number
   isActive: boolean
-  // Campos Meta API
   metaLanguage?: string
   metaCategory?: 'MARKETING' | 'UTILITY'
   headerType?: 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
   headerText?: string
   headerMediaUrl?: string
-  bodyText?: string // Template Meta com {{1}}, {{2}}...
+  bodyText?: string
   footerText?: string
   buttons?: TemplateButton[]
 }
@@ -68,8 +85,26 @@ interface Props {
   onSave: (data: TemplateFormData, isMetaMode: boolean) => Promise<void>
   template: any | null
   loading: boolean
-  hasOfficialApi: boolean // Se tem WhatsApp API Oficial ativa
+  hasOfficialApi: boolean
 }
+
+// Variáveis disponíveis
+const EVOLUTION_VARIABLES = [
+  { key: 'nome', label: 'Nome do Cliente', example: 'João Silva' },
+  { key: 'produtos', label: 'Produtos', example: 'Produto X e mais 2 itens' },
+  { key: 'link', label: 'Link do Carrinho', example: 'https://loja.com/cart/123' },
+  { key: 'total', label: 'Valor Total', example: 'R$ 149,90' },
+]
+
+const META_VARIABLES = [
+  { index: 1, label: 'Nome', example: 'João Silva' },
+  { index: 2, label: 'Produtos', example: 'Produto X e mais 2 itens' },
+  { index: 3, label: 'Valor Total', example: 'R$ 149,90' },
+  { index: 4, label: 'Link', example: 'https://loja.com/cart/123' },
+  { index: 5, label: 'Desconto', example: 'R$ 50,00' },
+  { index: 6, label: 'Data', example: '20/02/2026' },
+  { index: 7, label: 'Código', example: 'ABC123' },
+]
 
 export default function TemplateFormDialog({
   open,
@@ -95,11 +130,16 @@ export default function TemplateFormDialog({
     buttons: [],
   })
 
+  // Refs para inserção de variáveis
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  const bodyTextRef = useRef<HTMLTextAreaElement>(null)
+  const headerTextRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (template) {
       setFormData({
         name: template.name,
-        content: template.content,
+        content: template.content || '',
         delayMinutes: template.delayMinutes,
         isActive: template.isActive,
         metaLanguage: template.metaLanguage || 'pt_BR',
@@ -107,14 +147,12 @@ export default function TemplateFormDialog({
         headerType: 'NONE',
         headerText: '',
         headerMediaUrl: '',
-        bodyText: template.content,
+        bodyText: template.content || '',
         footerText: '',
         buttons: [],
       })
-      // Se já tem metaComponents, é template Meta
       if (template.metaComponents) {
         setMode('meta')
-        // TODO: Parse metaComponents para preencher form
       }
     } else {
       setFormData({
@@ -139,6 +177,34 @@ export default function TemplateFormDialog({
     await onSave(formData, mode === 'meta')
   }
 
+  // Inserir variável no cursor
+  const insertVariable = (variable: string, targetField: 'content' | 'bodyText' | 'headerText') => {
+    const ref =
+      targetField === 'content'
+        ? contentRef
+        : targetField === 'bodyText'
+        ? bodyTextRef
+        : headerTextRef
+
+    if (!ref.current) return
+
+    const textarea = ref.current
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const currentValue = formData[targetField] || ''
+
+    const newValue = currentValue.substring(0, start) + variable + currentValue.substring(end)
+
+    setFormData({ ...formData, [targetField]: newValue })
+
+    // Reposicionar cursor
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = start + variable.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
+  }
+
   const addButton = (type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER') => {
     const newButton: TemplateButton = { type, text: '' }
     setFormData({ ...formData, buttons: [...(formData.buttons || []), newButton] })
@@ -160,18 +226,60 @@ export default function TemplateFormDialog({
     return matches ? matches.length : 0
   }
 
-  const getVariableExamples = (count: number) => {
-    const examples = ['João', 'Produto X e mais 2 itens', 'https://loja.com/cart/123', 'R$ 149,90', 'R$ 50,00', '20/02/2026', 'ABC123']
-    return examples.slice(0, count)
+  const getPreview = () => {
+    if (mode === 'simple') {
+      let preview = formData.content
+      EVOLUTION_VARIABLES.forEach((v) => {
+        preview = preview.replace(new RegExp(`\\{\\{${v.key}\\}\\}`, 'g'), v.example)
+      })
+      return preview
+    } else {
+      let preview = ''
+      if (formData.headerType === 'TEXT' && formData.headerText) {
+        preview += `📌 ${formData.headerText.replace(/\{\{1\}\}/, 'João Silva')}\n\n`
+      }
+      if (formData.bodyText) {
+        let body = formData.bodyText
+        META_VARIABLES.forEach((v) => {
+          body = body.replace(new RegExp(`\\{\\{${v.index}\\}\\}`, 'g'), v.example)
+        })
+        preview += body
+      }
+      if (formData.footerText) {
+        preview += `\n\n━━━━━━━━━━━━\n${formData.footerText}`
+      }
+      if (formData.buttons && formData.buttons.length > 0) {
+        preview += '\n\n'
+        formData.buttons.forEach((btn) => {
+          preview += `\n🔘 ${btn.text}`
+          if (btn.type === 'URL' && btn.url) preview += ` (${btn.url})`
+          if (btn.type === 'PHONE_NUMBER' && btn.phoneNumber) preview += ` (${btn.phoneNumber})`
+        })
+      }
+      return preview
+    }
   }
 
+  const quickReplyCount = formData.buttons?.filter((b) => b.type === 'QUICK_REPLY').length || 0
+  const urlCount = formData.buttons?.filter((b) => b.type === 'URL').length || 0
+  const phoneCount = formData.buttons?.filter((b) => b.type === 'PHONE_NUMBER').length || 0
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        {template ? 'Editar Template' : 'Novo Template'}
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">{template ? 'Editar Template' : 'Novo Template'}</Typography>
+          <IconButton onClick={onClose} size="small">
+            <Close />
+          </IconButton>
+        </Box>
         {hasOfficialApi && !template && (
-          <Box sx={{ mt: 1 }}>
-            <Tabs value={mode === 'simple' ? 0 : 1} onChange={(_, v) => setMode(v === 0 ? 'simple' : 'meta')}>
+          <Box sx={{ mt: 2 }}>
+            <Tabs
+              value={mode === 'simple' ? 0 : 1}
+              onChange={(_, v) => setMode(v === 0 ? 'simple' : 'meta')}
+              variant="fullWidth"
+            >
               <Tab label="Modo Simples (Evolution API)" />
               <Tab label="Modo Completo (Meta API Oficial)" />
             </Tabs>
@@ -180,9 +288,9 @@ export default function TemplateFormDialog({
       </DialogTitle>
 
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid container spacing={3} sx={{ mt: 0.5 }}>
           {/* Campos comuns */}
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               label="Nome do Template"
@@ -194,18 +302,19 @@ export default function TemplateFormDialog({
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} md={2}>
             <TextField
               fullWidth
               type="number"
-              label="Delay (minutos)"
+              label="Delay (min)"
               value={formData.delayMinutes}
               onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })}
               required
+              inputProps={{ min: 1 }}
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} md={2}>
             <FormControlLabel
               control={
                 <Switch
@@ -214,30 +323,60 @@ export default function TemplateFormDialog({
                 />
               }
               label="Ativo"
+              sx={{ mt: 1 }}
             />
           </Grid>
 
           {/* MODO SIMPLES - Evolution API */}
           {mode === 'simple' && (
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={6}
-                label="Conteúdo da Mensagem"
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="Oi {{nome}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{produtos}}&#10;&#10;Total: {{total}}&#10;&#10;Finalize sua compra: {{link}}"
-                required
-                helperText="Use {{nome}}, {{produtos}}, {{link}}, {{total}} como variáveis"
-              />
-            </Grid>
+            <>
+              <Grid item xs={12}>
+                <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.main' }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      💬 Mensagem (Evolution API)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                      Clique nas variáveis abaixo para inserir no texto
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                      {EVOLUTION_VARIABLES.map((v) => (
+                        <Chip
+                          key={v.key}
+                          label={`{{${v.key}}}`}
+                          size="small"
+                          onClick={() => insertVariable(`{{${v.key}}}`, 'content')}
+                          icon={<Add />}
+                          color="primary"
+                          variant="outlined"
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Stack>
+
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={8}
+                      label="Conteúdo"
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder="Oi {{nome}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{produtos}}&#10;&#10;Total: {{total}}&#10;&#10;Finalize sua compra: {{link}}"
+                      required
+                      inputRef={contentRef}
+                      helperText="Use as variáveis acima clicando nelas"
+                    />
+                  </CardContent>
+                </Card>
+              </Grid>
+            </>
           )}
 
           {/* MODO COMPLETO - Meta API */}
           {mode === 'meta' && (
             <>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Idioma</InputLabel>
                   <Select
@@ -245,14 +384,14 @@ export default function TemplateFormDialog({
                     onChange={(e) => setFormData({ ...formData, metaLanguage: e.target.value })}
                     label="Idioma"
                   >
-                    <MenuItem value="pt_BR">Português (Brasil)</MenuItem>
-                    <MenuItem value="en_US">English (US)</MenuItem>
-                    <MenuItem value="es">Español</MenuItem>
+                    <MenuItem value="pt_BR">🇧🇷 Português (Brasil)</MenuItem>
+                    <MenuItem value="en_US">🇺🇸 English (US)</MenuItem>
+                    <MenuItem value="es">🇪🇸 Español</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Categoria</InputLabel>
                   <Select
@@ -260,196 +399,299 @@ export default function TemplateFormDialog({
                     onChange={(e) => setFormData({ ...formData, metaCategory: e.target.value as any })}
                     label="Categoria"
                   >
-                    <MenuItem value="MARKETING">Marketing</MenuItem>
-                    <MenuItem value="UTILITY">Utility (Notificações)</MenuItem>
+                    <MenuItem value="MARKETING">📢 Marketing</MenuItem>
+                    <MenuItem value="UTILITY">🔔 Utility (Notificações)</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
 
               {/* Header */}
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Cabeçalho (Header) - Opcional
-                  </Typography>
-                  <FormControl fullWidth sx={{ mt: 1 }}>
-                    <InputLabel>Tipo de Header</InputLabel>
-                    <Select
-                      value={formData.headerType}
-                      onChange={(e) => setFormData({ ...formData, headerType: e.target.value as any })}
-                      label="Tipo de Header"
-                    >
-                      <MenuItem value="NONE">Nenhum</MenuItem>
-                      <MenuItem value="TEXT">Texto</MenuItem>
-                      <MenuItem value="IMAGE">Imagem</MenuItem>
-                      <MenuItem value="VIDEO">Vídeo</MenuItem>
-                      <MenuItem value="DOCUMENT">Documento</MenuItem>
-                    </Select>
-                  </FormControl>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      📌 Cabeçalho (Header) - Opcional
+                    </Typography>
+                    <FormControl fullWidth sx={{ mt: 1 }}>
+                      <InputLabel>Tipo de Header</InputLabel>
+                      <Select
+                        value={formData.headerType}
+                        onChange={(e) => setFormData({ ...formData, headerType: e.target.value as any })}
+                        label="Tipo de Header"
+                      >
+                        <MenuItem value="NONE">Nenhum</MenuItem>
+                        <MenuItem value="TEXT">📝 Texto</MenuItem>
+                        <MenuItem value="IMAGE">🖼️ Imagem</MenuItem>
+                        <MenuItem value="🎥 VIDEO">Vídeo</MenuItem>
+                        <MenuItem value="DOCUMENT">📄 Documento</MenuItem>
+                      </Select>
+                    </FormControl>
 
-                  {formData.headerType === 'TEXT' && (
-                    <TextField
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      label="Texto do Header"
-                      value={formData.headerText}
-                      onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
-                      placeholder="Ex: Oferta Especial! ou Seu pedido {{1}}"
-                      helperText="Pode usar 1 variável: {{1}}"
-                    />
-                  )}
+                    {formData.headerType === 'TEXT' && (
+                      <>
+                        <Alert severity="info" sx={{ mt: 2, mb: 1 }}>
+                          <Typography variant="caption">
+                            Header TEXT pode ter 1 variável: {'{'}
+                            {'{'}1{'}'}
+                            {'}'}
+                          </Typography>
+                        </Alert>
+                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                          <Chip
+                            label="{{1}}"
+                            size="small"
+                            onClick={() => insertVariable('{{1}}', 'headerText')}
+                            icon={<Add />}
+                            color="secondary"
+                          />
+                        </Stack>
+                        <TextField
+                          fullWidth
+                          label="Texto do Header"
+                          value={formData.headerText}
+                          onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
+                          placeholder="Ex: Oferta Especial! ou Seu pedido {{1}}"
+                          inputRef={headerTextRef}
+                          inputProps={{ maxLength: 60 }}
+                          helperText={`${formData.headerText?.length || 0}/60 caracteres`}
+                        />
+                      </>
+                    )}
 
-                  {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formData.headerType || '') && (
-                    <TextField
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      label={`URL do ${formData.headerType === 'IMAGE' ? 'Imagem' : formData.headerType === 'VIDEO' ? 'Vídeo' : 'Documento'}`}
-                      value={formData.headerMediaUrl}
-                      onChange={(e) => setFormData({ ...formData, headerMediaUrl: e.target.value })}
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      helperText="URL pública do arquivo"
-                    />
-                  )}
-                </Paper>
+                    {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formData.headerType || '') && (
+                      <TextField
+                        fullWidth
+                        sx={{ mt: 2 }}
+                        label={`URL do ${
+                          formData.headerType === 'IMAGE'
+                            ? 'Imagem'
+                            : formData.headerType === 'VIDEO'
+                            ? 'Vídeo'
+                            : 'Documento'
+                        }`}
+                        value={formData.headerMediaUrl}
+                        onChange={(e) => setFormData({ ...formData, headerMediaUrl: e.target.value })}
+                        placeholder="https://exemplo.com/arquivo.jpg"
+                        helperText="URL pública do arquivo (HTTPS)"
+                      />
+                    )}
+                  </CardContent>
+                </Card>
               </Grid>
 
               {/* Body */}
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, bgcolor: 'primary.50' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Corpo da Mensagem (Body) - Obrigatório
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={6}
-                    sx={{ mt: 1 }}
-                    label="Texto do Body"
-                    value={formData.bodyText}
-                    onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
-                    placeholder="Oi {{1}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{2}}&#10;&#10;Total: {{3}}&#10;&#10;Finalize sua compra: {{4}}"
-                    required
-                    helperText={`Use {{1}}, {{2}}, {{3}}... para variáveis. Variáveis encontradas: ${countVariables(formData.bodyText || '')}`}
-                  />
-                  {countVariables(formData.bodyText || '') > 0 && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                      <Typography variant="caption" fontWeight={600}>
-                        Exemplos para as variáveis:
-                      </Typography>
-                      <Box component="ul" sx={{ mt: 0.5, mb: 0, pl: 2 }}>
-                        {getVariableExamples(countVariables(formData.bodyText || '')).map((ex, i) => (
-                          <li key={i}>
-                            <Typography variant="caption">
-                              {`{{${i + 1}}}`} = {ex}
-                            </Typography>
-                          </li>
-                        ))}
-                      </Box>
-                    </Alert>
-                  )}
-                </Paper>
+                <Card variant="outlined" sx={{ bgcolor: 'success.50', borderColor: 'success.main' }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      💬 Corpo da Mensagem (Body) - Obrigatório
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                      Clique nas variáveis para inserir. Use {'{'}
+                      {'{'}1{'}'}{'}'}
+, {'{'}
+                      {'{'}2{'}'}
+                      {'}'}
+                      ... em sequência
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                      {META_VARIABLES.map((v) => (
+                        <Tooltip key={v.index} title={v.label}>
+                          <Chip
+                            label={`{{${v.index}}}`}
+                            size="small"
+                            onClick={() => insertVariable(`{{${v.index}}}`, 'bodyText')}
+                            icon={<Add />}
+                            color="success"
+                            variant="outlined"
+                            sx={{ cursor: 'pointer' }}
+                          />
+                        </Tooltip>
+                      ))}
+                    </Stack>
+
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={8}
+                      label="Texto do Body"
+                      value={formData.bodyText}
+                      onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
+                      placeholder="Oi {{1}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{2}}&#10;&#10;Total: {{3}}&#10;&#10;Finalize sua compra: {{4}}"
+                      required
+                      inputRef={bodyTextRef}
+                      inputProps={{ maxLength: 1024 }}
+                      helperText={`${formData.bodyText?.length || 0}/1024 caracteres | ${countVariables(
+                        formData.bodyText || ''
+                      )} variáveis encontradas`}
+                    />
+                  </CardContent>
+                </Card>
               </Grid>
 
               {/* Footer */}
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Rodapé (Footer) - Opcional
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    sx={{ mt: 1 }}
-                    label="Texto do Footer"
-                    value={formData.footerText}
-                    onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
-                    placeholder="Ex: Aproveite! Válido até 20/02/2026"
-                    helperText="Máximo 60 caracteres. Sem variáveis."
-                    inputProps={{ maxLength: 60 }}
-                  />
-                </Paper>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      🔖 Rodapé (Footer) - Opcional
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      sx={{ mt: 1 }}
+                      label="Texto do Footer"
+                      value={formData.footerText}
+                      onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                      placeholder="Ex: Aproveite! Válido até 20/02/2026"
+                      helperText="Máximo 60 caracteres. Sem variáveis."
+                      inputProps={{ maxLength: 60 }}
+                    />
+                  </CardContent>
+                </Card>
               </Grid>
 
               {/* Buttons */}
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Botões - Opcional
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Add />}
-                      onClick={() => addButton('QUICK_REPLY')}
-                      disabled={(formData.buttons?.filter(b => b.type === 'QUICK_REPLY').length || 0) >= 3}
-                    >
-                      Resposta Rápida (máx 3)
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<LinkIcon />}
-                      onClick={() => addButton('URL')}
-                      disabled={(formData.buttons?.filter(b => b.type === 'URL').length || 0) >= 2}
-                    >
-                      Link (máx 2)
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => addButton('PHONE_NUMBER')}
-                      disabled={(formData.buttons?.filter(b => b.type === 'PHONE_NUMBER').length || 0) >= 1}
-                    >
-                      Telefone (máx 1)
-                    </Button>
-                  </Box>
-
-                  {formData.buttons?.map((button, index) => (
-                    <Box key={index} sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'start' }}>
-                      <Chip label={button.type} size="small" />
-                      <TextField
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      🔘 Botões - Opcional
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mb: 2, mt: 1 }}>
+                      <Button
                         size="small"
-                        label="Texto do Botão"
-                        value={button.text}
-                        onChange={(e) => updateButton(index, 'text', e.target.value)}
-                        sx={{ flexGrow: 1 }}
-                      />
-                      {button.type === 'URL' && (
-                        <TextField
-                          size="small"
-                          label="URL"
-                          value={button.url || ''}
-                          onChange={(e) => updateButton(index, 'url', e.target.value)}
-                          placeholder="https://loja.com"
-                          sx={{ flexGrow: 1 }}
-                        />
-                      )}
-                      {button.type === 'PHONE_NUMBER' && (
-                        <TextField
-                          size="small"
-                          label="Telefone"
-                          value={button.phoneNumber || ''}
-                          onChange={(e) => updateButton(index, 'phoneNumber', e.target.value)}
-                          placeholder="+5511999999999"
-                          sx={{ flexGrow: 1 }}
-                        />
-                      )}
-                      <IconButton size="small" onClick={() => removeButton(index)}>
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  ))}
-                </Paper>
+                        variant={quickReplyCount > 0 ? 'contained' : 'outlined'}
+                        startIcon={<Reply />}
+                        onClick={() => addButton('QUICK_REPLY')}
+                        disabled={quickReplyCount >= 3}
+                      >
+                        Resposta Rápida ({quickReplyCount}/3)
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={urlCount > 0 ? 'contained' : 'outlined'}
+                        startIcon={<LinkIcon />}
+                        onClick={() => addButton('URL')}
+                        disabled={urlCount >= 2}
+                      >
+                        Link ({urlCount}/2)
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={phoneCount > 0 ? 'contained' : 'outlined'}
+                        startIcon={<Phone />}
+                        onClick={() => addButton('PHONE_NUMBER')}
+                        disabled={phoneCount >= 1}
+                      >
+                        Telefone ({phoneCount}/1)
+                      </Button>
+                    </Stack>
+
+                    {formData.buttons?.map((button, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          mb: 2,
+                          p: 2,
+                          bgcolor: 'grey.50',
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="start">
+                          <Chip
+                            label={button.type === 'QUICK_REPLY' ? 'Resposta' : button.type === 'URL' ? 'Link' : 'Tel'}
+                            size="small"
+                            color={
+                              button.type === 'QUICK_REPLY'
+                                ? 'primary'
+                                : button.type === 'URL'
+                                ? 'secondary'
+                                : 'info'
+                            }
+                          />
+                          <TextField
+                            size="small"
+                            label="Texto do Botão"
+                            value={button.text}
+                            onChange={(e) => updateButton(index, 'text', e.target.value)}
+                            sx={{ flexGrow: 1 }}
+                            inputProps={{ maxLength: 25 }}
+                            helperText={`${button.text?.length || 0}/25`}
+                          />
+                          {button.type === 'URL' && (
+                            <TextField
+                              size="small"
+                              label="URL"
+                              value={button.url || ''}
+                              onChange={(e) => updateButton(index, 'url', e.target.value)}
+                              placeholder="https://loja.com"
+                              sx={{ flexGrow: 1 }}
+                            />
+                          )}
+                          {button.type === 'PHONE_NUMBER' && (
+                            <TextField
+                              size="small"
+                              label="Telefone"
+                              value={button.phoneNumber || ''}
+                              onChange={(e) => updateButton(index, 'phoneNumber', e.target.value)}
+                              placeholder="+5511999999999"
+                              sx={{ flexGrow: 1 }}
+                            />
+                          )}
+                          <IconButton size="small" onClick={() => removeButton(index)} color="error">
+                            <Delete />
+                          </IconButton>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </CardContent>
+                </Card>
               </Grid>
             </>
           )}
+
+          {/* Preview */}
+          <Grid item xs={12}>
+            <Card variant="outlined" sx={{ bgcolor: 'info.50', borderColor: 'info.main' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Visibility color="info" />
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Pré-visualização
+                  </Typography>
+                </Box>
+                <Paper
+                  sx={{
+                    p: 2,
+                    bgcolor: 'white',
+                    minHeight: 100,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ whiteSpace: 'pre-wrap', fontFamily: 'system-ui', lineHeight: 1.5 }}
+                  >
+                    {getPreview() || 'Digite o conteúdo do template para ver o preview...'}
+                  </Typography>
+                </Paper>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
-        <LoadingButton variant="contained" onClick={handleSave} loading={loading}>
-          {template ? 'Atualizar' : 'Criar'}
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
+        <LoadingButton variant="contained" onClick={handleSave} loading={loading} size="large">
+          {template ? 'Atualizar Template' : 'Criar Template'}
         </LoadingButton>
       </DialogActions>
     </Dialog>

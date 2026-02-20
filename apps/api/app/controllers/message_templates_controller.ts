@@ -326,32 +326,94 @@ export default class MessageTemplatesController {
     }
 
     try {
-      // Substituir variáveis com dados de exemplo
-      const testMessage = template.content
-        .replace(/\{\{nome\}\}/g, 'João Silva')
-        .replace(/\{\{produtos\}\}/g, '• Produto 1 - R$ 199,90\n• Produto 2 - R$ 99,90')
-        .replace(/\{\{link\}\}/g, 'https://sua-loja.com/carrinho/abc123')
-        .replace(/\{\{total\}\}/g, 'R$ 299,90')
-
-      // Adicionar cabeçalho indicando que é teste
-      const messageWithHeader = `🧪 *MENSAGEM DE TESTE*\n\n${testMessage}\n\n_Esta é uma mensagem de teste do template "${template.name}"_`
+      let metaMessageId: string | null = null
 
       if (whatsappInstance) {
-        // Enviar via Evolution API
-        console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Evolution API`)
+        // ========== EVOLUTION API ==========
+        const testMessage = template.content
+          .replace(/\{\{nome\}\}/g, 'João Silva')
+          .replace(/\{\{produtos\}\}/g, '• Produto 1 - R$ 199,90\n• Produto 2 - R$ 99,90')
+          .replace(/\{\{link\}\}/g, 'https://sua-loja.com/carrinho/abc123')
+          .replace(/\{\{total\}\}/g, 'R$ 299,90')
+
+        const messageWithHeader = `🧪 *MENSAGEM DE TESTE*\n\n${testMessage}\n\n_Esta é uma mensagem de teste do template "${template.name}"_`
+
+        console.log(
+          `📤 Sending test message from template "${template.name}" to ${phoneNumber} via Evolution API`
+        )
         await evolutionApiService.sendText(whatsappInstance.instanceName, phoneNumber, messageWithHeader)
       } else {
-        // Enviar via API Oficial
-        console.log(`📤 Sending test message from template "${template.name}" to ${phoneNumber} via Official API`)
-        await whatsappOfficialService.sendTextMessage(
-          {
-            phoneNumberId: officialCredential!.phoneNumberId,
-            wabaId: officialCredential!.wabaId,
-            accessToken: officialCredential!.accessToken,
-          },
-          phoneNumber,
-          messageWithHeader
+        // ========== META WHATSAPP OFFICIAL API ==========
+        console.log(
+          `📤 Sending test message from template "${template.name}" to ${phoneNumber} via Official API`
         )
+
+        const credentials = {
+          phoneNumberId: officialCredential!.phoneNumberId,
+          wabaId: officialCredential!.wabaId,
+          accessToken: officialCredential!.accessToken,
+        }
+
+        // Se template está aprovado pela Meta, usa sendTemplateMessage
+        if (template.metaStatus === 'approved' && template.metaTemplateId && template.metaTemplateName) {
+          console.log(`✅ Template approved, sending via Meta template: ${template.metaTemplateName}`)
+
+          // Dados de exemplo para variáveis
+          const exampleParams = ['João Silva', 'Produto X e mais 2 itens', 'R$ 149,90', 'https://loja.com/cart/123']
+
+          const result = await whatsappOfficialService.sendTemplateMessage(credentials, {
+            to: phoneNumber,
+            templateName: template.metaTemplateName,
+            languageCode: template.metaLanguage || 'pt_BR',
+            components: [
+              {
+                type: 'body',
+                parameters: exampleParams.map((text) => ({ type: 'text', text })),
+              },
+            ],
+          })
+
+          metaMessageId = result.messages?.[0]?.id || null
+        } else {
+          // Template não aprovado ou não sincronizado, envia como texto
+          console.log(`⚠️ Template not approved, sending as text message`)
+
+          const testMessage = template.content
+            .replace(/\{\{nome\}\}/g, 'João Silva')
+            .replace(/\{\{produtos\}\}/g, 'Produto X e mais 2 itens')
+            .replace(/\{\{link\}\}/g, 'https://loja.com/cart/123')
+            .replace(/\{\{total\}\}/g, 'R$ 149,90')
+            // Também suporta variáveis Meta {{1}}, {{2}}...
+            .replace(/\{\{1\}\}/g, 'João Silva')
+            .replace(/\{\{2\}\}/g, 'Produto X e mais 2 itens')
+            .replace(/\{\{3\}\}/g, 'R$ 149,90')
+            .replace(/\{\{4\}\}/g, 'https://loja.com/cart/123')
+
+          const messageWithHeader = `🧪 *MENSAGEM DE TESTE*\n\n${testMessage}\n\n_Template: "${template.name}"_`
+
+          const result = await whatsappOfficialService.sendTextMessage(credentials, phoneNumber, messageWithHeader)
+          metaMessageId = result.messages?.[0]?.id || null
+        }
+
+        // Criar log na tabela whatsapp_official_logs
+        const WhatsappOfficialLog = (await import('#models/whatsapp_official_log')).default
+
+        await WhatsappOfficialLog.create({
+          tenantId: tenant.id,
+          officialTemplateId: null, // Não é um envio automático
+          abandonedCartId: null,
+          templateName: template.metaTemplateName || template.name,
+          recipientPhone: phoneNumber,
+          recipientName: 'João Silva (TESTE)',
+          languageCode: template.metaLanguage || 'pt_BR',
+          messageType: template.metaStatus === 'approved' ? 'template' : 'text',
+          status: 'sent',
+          metaMessageId,
+          bodyParams: '["João Silva", "Produto X", "R$ 149,90", "https://loja.com/cart/123"]',
+          sentAt: DateTime.now(),
+        })
+
+        console.log(`📝 Log created in whatsapp_official_logs`)
       }
 
       console.log(`✅ Test message sent successfully`)
@@ -362,16 +424,19 @@ export default class MessageTemplatesController {
           message: 'Mensagem de teste enviada com sucesso!',
           phoneNumber,
           templateName: template.name,
+          sentVia: whatsappInstance ? 'Evolution API' : 'Meta Official API',
+          usedMetaTemplate: !whatsappInstance && template.metaStatus === 'approved',
         },
       })
     } catch (error: any) {
       console.error('❌ Error sending test message:', error)
+      console.error('Error details:', error.response?.data || error.message)
 
       return response.badRequest({
         success: false,
         error: {
           code: 'SEND_MESSAGE_FAILED',
-          message: 'Erro ao enviar mensagem de teste',
+          message: error.response?.data?.error?.message || error.message || 'Erro ao enviar mensagem de teste',
           details: error.response?.data || error.message,
         },
       })
