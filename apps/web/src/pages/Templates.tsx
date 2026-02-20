@@ -89,7 +89,8 @@ export default function Templates() {
   const loadOfficialApiStatus = async () => {
     try {
       const res = await whatsappOfficialApi.getCredentials()
-      const isActive = res.data.data.configured && res.data.data.credential?.isActive === true
+      // isActive vem como 1 (number) do banco, então usar !! para converter para boolean
+      const isActive = res.data.data.configured && !!res.data.data.credential?.isActive
       console.log('🔍 Templates.tsx - loadOfficialApiStatus:', { configured: res.data.data.configured, isActive: res.data.data.credential?.isActive, result: isActive })
       setHasOfficialApi(isActive)
     } catch (error) {
