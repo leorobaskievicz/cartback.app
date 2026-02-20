@@ -114,6 +114,8 @@ export default function TemplateFormDialog({
   loading,
   hasOfficialApi,
 }: Props) {
+  console.log('🔍 TemplateFormDialog - hasOfficialApi:', hasOfficialApi)
+
   const [mode, setMode] = useState<'simple' | 'meta'>('simple')
   const [formData, setFormData] = useState<TemplateFormData>({
     name: '',
@@ -273,7 +275,7 @@ export default function TemplateFormDialog({
             <Close />
           </IconButton>
         </Box>
-        {hasOfficialApi && !template && (
+        {hasOfficialApi && (
           <Box sx={{ mt: 2 }}>
             <Tabs
               value={mode === 'simple' ? 0 : 1}
@@ -283,6 +285,10 @@ export default function TemplateFormDialog({
               <Tab label="Modo Simples (Evolution API)" />
               <Tab label="Modo Completo (Meta API Oficial)" />
             </Tabs>
+            <Alert severity="info" sx={{ mt: 1, fontSize: '0.85rem' }}>
+              <strong>Modo Simples:</strong> Mensagens enviadas como texto via Evolution API<br/>
+              <strong>Modo Completo:</strong> Templates estruturados enviados via Meta API (com botões, header, footer, etc.)
+            </Alert>
           </Box>
         )}
       </DialogTitle>
@@ -376,6 +382,18 @@ export default function TemplateFormDialog({
           {/* MODO COMPLETO - Meta API */}
           {mode === 'meta' && (
             <>
+              <Grid item xs={12}>
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                    📋 Configurações do Template Meta
+                  </Typography>
+                  <Typography variant="caption">
+                    <strong>MARKETING:</strong> Para promoções, ofertas e recuperação de carrinho. Possui limite de envios e horários.<br/>
+                    <strong>UTILITY:</strong> Para confirmações de pedido, rastreamento e notificações importantes. Sem limite de horário.
+                  </Typography>
+                </Alert>
+              </Grid>
+
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Idioma</InputLabel>
@@ -399,8 +417,8 @@ export default function TemplateFormDialog({
                     onChange={(e) => setFormData({ ...formData, metaCategory: e.target.value as any })}
                     label="Categoria"
                   >
-                    <MenuItem value="MARKETING">📢 Marketing</MenuItem>
-                    <MenuItem value="UTILITY">🔔 Utility (Notificações)</MenuItem>
+                    <MenuItem value="MARKETING">📢 MARKETING</MenuItem>
+                    <MenuItem value="UTILITY">🔔 UTILITY</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
