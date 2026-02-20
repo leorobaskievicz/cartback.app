@@ -481,12 +481,28 @@ export default function Templates() {
                     >
                       <Send fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleOpenDialog(template)}>
-                      <Edit fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDeleteClick(template)}>
-                      <Delete fontSize="small" />
-                    </IconButton>
+                    <Tooltip
+                      title={
+                        template.metaTemplateId
+                          ? 'Templates da API Oficial do Meta não podem ser editados. Crie um novo template se precisar fazer alterações.'
+                          : 'Editar template'
+                      }
+                    >
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(template)}
+                          disabled={!!template.metaTemplateId}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={template.metaTemplateId ? 'Deletar template (será removido do Meta também)' : 'Deletar template'}>
+                      <IconButton size="small" color="error" onClick={() => handleDeleteClick(template)}>
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </CardActions>
               </Card>

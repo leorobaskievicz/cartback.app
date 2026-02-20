@@ -203,7 +203,7 @@ export default class MessageTemplatesController {
 
   /**
    * DELETE /api/templates/:id
-   * Remove template
+   * Remove template (e deleta do Meta também se for template oficial)
    */
   async destroy({ auth, params, response }: HttpContext) {
     const user = auth.user!
@@ -214,11 +214,53 @@ export default class MessageTemplatesController {
       .where('tenant_id', tenant.id)
       .firstOrFail()
 
+    // Se template tem metaTemplateId, deletar do Meta também
+    if (template.metaTemplateId && template.metaTemplateName) {
+      try {
+        const officialCredential = await WhatsappOfficialCredential.query()
+          .where('tenant_id', tenant.id)
+          .where('is_active', true)
+          .first()
+
+        if (officialCredential) {
+          console.log(`🗑️ Deleting template "${template.metaTemplateName}" from Meta...`)
+
+          await whatsappOfficialService.deleteTemplate(
+            {
+              phoneNumberId: officialCredential.phoneNumberId,
+              wabaId: officialCredential.wabaId,
+              accessToken: officialCredential.accessToken,
+            },
+            template.metaTemplateName
+          )
+
+          console.log(`✅ Template deleted from Meta successfully`)
+        } else {
+          console.warn(`⚠️ Template has metaTemplateId but no active official credential found`)
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to delete template from Meta:`, error.message)
+        // Se falhar ao deletar do Meta, retornar erro para o usuário
+        return response.badRequest({
+          success: false,
+          error: {
+            code: 'META_DELETE_FAILED',
+            message: `Erro ao deletar template do Meta: ${error.message}`,
+          },
+        })
+      }
+    }
+
+    // Deletar do banco de dados local
     await template.delete()
 
     return response.ok({
       success: true,
-      data: { message: 'Template deleted successfully' },
+      data: {
+        message: template.metaTemplateId
+          ? 'Template deletado com sucesso (removido do Meta também)'
+          : 'Template deletado com sucesso',
+      },
     })
   }
 
