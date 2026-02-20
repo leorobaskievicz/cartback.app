@@ -90,8 +90,10 @@ export default function Templates() {
     try {
       const res = await whatsappOfficialApi.getCredentials()
       const isActive = res.data.data.configured && res.data.data.credential?.isActive === true
+      console.log('🔍 Templates.tsx - loadOfficialApiStatus:', { configured: res.data.data.configured, isActive: res.data.data.credential?.isActive, result: isActive })
       setHasOfficialApi(isActive)
     } catch (error) {
+      console.log('🔍 Templates.tsx - loadOfficialApiStatus ERROR:', error)
       setHasOfficialApi(false)
     }
   }
