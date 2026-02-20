@@ -35,16 +35,18 @@ import {
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { useNavigate } from 'react-router-dom'
-import { templatesApi, plansApi } from '../services/api'
+import { templatesApi, plansApi, whatsappOfficialApi } from '../services/api'
 import type { MessageTemplate, Subscription } from '../types'
 import LoadingButton from '../components/common/LoadingButton'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import EmptyState from '../components/common/EmptyState'
+import TemplateFormDialog from '../components/templates/TemplateFormDialog'
 
 export default function Templates() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hasOfficialApi, setHasOfficialApi] = useState(false)
   const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -65,6 +67,7 @@ export default function Templates() {
 
   useEffect(() => {
     loadTemplates()
+    loadOfficialApiStatus()
   }, [])
 
   const loadTemplates = async () => {
@@ -80,6 +83,16 @@ export default function Templates() {
       enqueueSnackbar('Erro ao carregar templates', { variant: 'error' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadOfficialApiStatus = async () => {
+    try {
+      const res = await whatsappOfficialApi.getCredentials()
+      const isActive = res.data.data.configured && res.data.data.credential?.isActive === true
+      setHasOfficialApi(isActive)
+    } catch (error) {
+      setHasOfficialApi(false)
     }
   }
 
@@ -112,25 +125,30 @@ export default function Templates() {
     setCurrentTemplate(null)
   }
 
-  const handleSave = async () => {
-    if (!formData.name || !formData.content) {
-      enqueueSnackbar('Preencha todos os campos obrigatórios', { variant: 'error' })
-      return
-    }
-
+  const handleSave = async (data: any, isMetaMode: boolean) => {
     setSaveLoading(true)
     try {
+      const payload = isMetaMode
+        ? { ...data, metaMode: true }
+        : {
+            name: data.name,
+            content: data.content,
+            delayMinutes: data.delayMinutes,
+            isActive: data.isActive,
+          }
+
       if (currentTemplate) {
-        await templatesApi.update(currentTemplate.id, formData)
+        await templatesApi.update(currentTemplate.id, payload)
         enqueueSnackbar('Template atualizado com sucesso!', { variant: 'success' })
       } else {
-        await templatesApi.create(formData)
+        await templatesApi.create(payload)
         enqueueSnackbar('Template criado com sucesso!', { variant: 'success' })
       }
       handleCloseDialog()
       await loadTemplates()
     } catch (error: any) {
-      enqueueSnackbar('Erro ao salvar template', { variant: 'error' })
+      const errorMsg = error.response?.data?.error?.message || 'Erro ao salvar template'
+      enqueueSnackbar(errorMsg, { variant: 'error' })
     } finally {
       setSaveLoading(false)
     }
@@ -475,68 +493,14 @@ export default function Templates() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{currentTemplate ? 'Editar Template' : 'Novo Template'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Nome do template"
-            fullWidth
-            margin="normal"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <TextField
-            label="Mensagem"
-            fullWidth
-            margin="normal"
-            multiline
-            rows={6}
-            value={formData.content}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            required
-            helperText="Use CHAVES DUPLAS: {{nome}}, {{produtos}}, {{link}}, {{total}} (nunca use {nome} com chaves simples!)"
-          />
-          <TextField
-            label="Enviar após (minutos)"
-            fullWidth
-            margin="normal"
-            type="number"
-            value={formData.delayMinutes}
-            onChange={(e) => setFormData({ ...formData, delayMinutes: Number(e.target.value) })}
-            required
-            inputProps={{ min: 1 }}
-          />
-
-          {formData.content && (
-            <Paper
-              sx={{
-                p: 2,
-                mt: 2,
-                bgcolor: (theme) =>
-                  theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'grey.50',
-                borderRadius: 2,
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Pré-visualização:
-              </Typography>
-              <Typography variant="body2" color="text.primary" sx={{ whiteSpace: 'pre-wrap' }}>
-                {getPreviewMessage(formData.content)}
-              </Typography>
-            </Paper>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} disabled={saveLoading}>
-            Cancelar
-          </Button>
-          <LoadingButton variant="contained" onClick={handleSave} loading={saveLoading}>
-            {currentTemplate ? 'Salvar' : 'Criar'}
-          </LoadingButton>
-        </DialogActions>
-      </Dialog>
+      <TemplateFormDialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        onSave={handleSave}
+        template={currentTemplate}
+        loading={saveLoading}
+        hasOfficialApi={hasOfficialApi}
+      />
 
       {/* Delete Confirmation */}
       <ConfirmDialog
