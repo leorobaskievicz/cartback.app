@@ -57,7 +57,42 @@ export class TemplateSyncService {
   }
 
   /**
-   * Converte template CartBack para formato Meta API
+   * Constrói components Meta a partir do metaComponents salvo no template
+   * Usado quando o template já foi criado em modo Meta completo
+   */
+  private buildMetaComponentsFromTemplate(template: MessageTemplate): {
+    name: string
+    components: TemplateComponent[]
+  } {
+    if (template.metaComponents && Array.isArray(template.metaComponents)) {
+      // Template já tem components Meta salvos
+      return {
+        name: template.metaTemplateName || this.generateMetaName(template.name),
+        components: template.metaComponents,
+      }
+    }
+
+    // Fallback: converter do formato simples
+    return this.convertToMetaFormat(template)
+  }
+
+  /**
+   * Gera nome único para template Meta (lowercase, sem espaços, sem acentos)
+   */
+  private generateMetaName(baseName: string): string {
+    const sanitized = baseName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove acentos
+      .replace(/[^a-z0-9_]/g, '_')
+      .substring(0, 50)
+
+    return `${sanitized}_${Date.now()}`
+  }
+
+  /**
+   * Converte template CartBack simples para formato Meta API
+   * Usado para templates criados no modo Evolution (formato antigo)
    */
   private convertToMetaFormat(template: MessageTemplate): {
     name: string
@@ -73,15 +108,7 @@ export class TemplateSyncService {
       metaBody = metaBody.replace(regex, `{{${v.metaIndex}}}`)
     })
 
-    // Gerar nome único pro template Meta (lowercase, sem espaços, sem caracteres especiais)
-    const baseName = template.name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // remove acentos
-      .replace(/[^a-z0-9_]/g, '_')
-      .substring(0, 50)
-
-    const uniqueName = `${baseName}_${Date.now()}`
+    const uniqueName = this.generateMetaName(template.name)
 
     const components: TemplateComponent[] = [
       {
@@ -121,7 +148,7 @@ export class TemplateSyncService {
       return
     }
 
-    const { name, components, bodyText } = this.convertToMetaFormat(template)
+    const { name, components } = this.buildMetaComponentsFromTemplate(template)
 
     try {
       const metaTemplate = await whatsappOfficialService.createTemplate(

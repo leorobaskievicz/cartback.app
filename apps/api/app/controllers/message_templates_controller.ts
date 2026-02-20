@@ -59,17 +59,100 @@ export default class MessageTemplatesController {
       .max('sort_order as max')
       .firstOrFail()
 
+    // Se metaMode=true, construir components Meta e content do bodyText
+    let metaComponents = null
+    let content = data.content || ''
+
+    if (data.metaMode && data.bodyText) {
+      // Modo Meta: construir components completos
+      const components: any[] = []
+
+      // HEADER
+      if (data.headerType && data.headerType !== 'NONE') {
+        const headerComponent: any = { type: 'HEADER' }
+
+        if (data.headerType === 'TEXT') {
+          headerComponent.format = 'TEXT'
+          headerComponent.text = data.headerText || ''
+          // Se tem variável {{1}} no header, adicionar example
+          if (data.headerText?.includes('{{1}}')) {
+            headerComponent.example = { header_text: ['Exemplo Header'] }
+          }
+        } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(data.headerType)) {
+          headerComponent.format = data.headerType
+          if (data.headerMediaUrl) {
+            headerComponent.example = {
+              header_handle: [data.headerMediaUrl],
+            }
+          }
+        }
+
+        components.push(headerComponent)
+      }
+
+      // BODY (obrigatório)
+      const bodyComponent: any = {
+        type: 'BODY',
+        text: data.bodyText,
+      }
+
+      // Extrair variáveis {{1}}, {{2}}... e gerar examples
+      const variableMatches = [...data.bodyText.matchAll(/\{\{(\d+)\}\}/g)]
+      if (variableMatches.length > 0) {
+        const examples = [
+          'João',
+          'Produto X e mais 2 itens',
+          'https://loja.com/cart/123',
+          'R$ 149,90',
+        ]
+        bodyComponent.example = {
+          body_text: [examples.slice(0, variableMatches.length)],
+        }
+      }
+
+      components.push(bodyComponent)
+
+      // FOOTER
+      if (data.footerText) {
+        components.push({
+          type: 'FOOTER',
+          text: data.footerText,
+        })
+      }
+
+      // BUTTONS
+      if (data.buttons && data.buttons.length > 0) {
+        const buttonComponent: any = {
+          type: 'BUTTONS',
+          buttons: data.buttons.map((btn: any) => {
+            const button: any = { type: btn.type, text: btn.text }
+            if (btn.type === 'URL' && btn.url) {
+              button.url = btn.url
+            } else if (btn.type === 'PHONE_NUMBER' && btn.phoneNumber) {
+              button.phone_number = btn.phoneNumber
+            }
+            return button
+          }),
+        }
+        components.push(buttonComponent)
+      }
+
+      metaComponents = components
+      content = data.bodyText // Salvar bodyText como content também
+    }
+
     const template = await MessageTemplate.create({
       tenantId: tenant.id,
       name: data.name,
       triggerType: data.triggerType || 'abandoned_cart',
       delayMinutes: data.delayMinutes,
-      content: data.content,
+      content,
       isActive: data.isActive ?? true,
       sortOrder: (maxSortOrder.$extras.max || 0) + 1,
       metaStatus: 'not_synced',
-      metaLanguage: 'pt_BR',
-      metaCategory: 'MARKETING',
+      metaLanguage: data.metaLanguage || 'pt_BR',
+      metaCategory: data.metaCategory || 'MARKETING',
+      metaComponents,
     })
 
     // Auto-sync com Meta se API Oficial está ativa
