@@ -358,19 +358,94 @@ export default class MessageTemplatesController {
         if (template.metaStatus === 'approved' && template.metaTemplateId && template.metaTemplateName) {
           console.log(`✅ Template approved, sending via Meta template: ${template.metaTemplateName}`)
 
-          // Dados de exemplo para variáveis
-          const exampleParams = ['João Silva', 'Produto X e mais 2 itens', 'R$ 149,90', 'https://loja.com/cart/123']
+          // Dados de exemplo para variáveis (pool de valores)
+          const exampleValues = [
+            'João Silva',
+            'Produto X e mais 2 itens',
+            'R$ 149,90',
+            'https://loja.com/cart/123',
+            'R$ 50,00',
+            '20/02/2026',
+            'ABC123',
+          ]
+
+          const components: any[] = []
+
+          // Analisar metaComponents para construir os components corretamente
+          if (template.metaComponents && Array.isArray(template.metaComponents)) {
+            for (const comp of template.metaComponents) {
+              if (comp.type === 'HEADER') {
+                if (comp.format === 'TEXT' && comp.text) {
+                  // Contar variáveis no header (pode ter {{1}})
+                  const headerMatches = comp.text.match(/\{\{(\d+)\}\}/g)
+                  if (headerMatches && headerMatches.length > 0) {
+                    components.push({
+                      type: 'header',
+                      parameters: headerMatches.map((_, idx) => ({
+                        type: 'text',
+                        text: exampleValues[idx] || `Valor ${idx + 1}`,
+                      })),
+                    })
+                  }
+                } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)) {
+                  // Header com mídia - enviar exemplo de URL
+                  const mediaType = comp.format.toLowerCase()
+                  components.push({
+                    type: 'header',
+                    parameters: [
+                      {
+                        type: mediaType,
+                        [mediaType]: {
+                          link: comp.example?.header_handle?.[0] || 'https://via.placeholder.com/300',
+                        },
+                      },
+                    ],
+                  })
+                }
+              } else if (comp.type === 'BODY') {
+                // Contar variáveis no body {{1}}, {{2}}, {{3}}...
+                const bodyMatches = comp.text.match(/\{\{(\d+)\}\}/g)
+                if (bodyMatches && bodyMatches.length > 0) {
+                  // Extrair números únicos e ordenar
+                  const varNumbers = [...new Set(bodyMatches.map((m) => parseInt(m.match(/\d+/)![0])))]
+                    .sort((a, b) => a - b)
+
+                  components.push({
+                    type: 'body',
+                    parameters: varNumbers.map((num) => ({
+                      type: 'text',
+                      text: exampleValues[num - 1] || `Valor ${num}`,
+                    })),
+                  })
+                }
+              }
+              // FOOTER e BUTTONS não têm parâmetros
+            }
+          } else {
+            // Fallback: analisar content se não tiver metaComponents
+            const content = template.content || ''
+            const bodyMatches = content.match(/\{\{(\d+)\}\}/g)
+            if (bodyMatches && bodyMatches.length > 0) {
+              const varNumbers = [...new Set(bodyMatches.map((m) => parseInt(m.match(/\d+/)![0])))]
+                .sort((a, b) => a - b)
+
+              components.push({
+                type: 'body',
+                parameters: varNumbers.map((num) => ({
+                  type: 'text',
+                  text: exampleValues[num - 1] || `Valor ${num}`,
+                })),
+              })
+            }
+          }
+
+          console.log(`📤 Sending with components:`, JSON.stringify(components, null, 2))
 
           const result = await whatsappOfficialService.sendTemplateMessage(credentials, {
             to: phoneNumber,
             templateName: template.metaTemplateName,
             languageCode: template.metaLanguage || 'pt_BR',
-            components: [
-              {
-                type: 'body',
-                parameters: exampleParams.map((text) => ({ type: 'text', text })),
-              },
-            ],
+            components: components.length > 0 ? components : undefined,
           })
 
           metaMessageId = result.messages?.[0]?.id || null
