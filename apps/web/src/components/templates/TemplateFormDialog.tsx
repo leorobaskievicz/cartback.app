@@ -337,9 +337,9 @@ export default function TemplateFormDialog({
           {mode === 'simple' && (
             <>
               <Grid item xs={12}>
-                <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.main' }}>
+                <Card variant="outlined" sx={{ borderColor: 'primary.main' }}>
                   <CardContent>
-                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom color="primary.main">
                       💬 Mensagem (Evolution API)
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
@@ -499,9 +499,9 @@ export default function TemplateFormDialog({
 
               {/* Body */}
               <Grid item xs={12}>
-                <Card variant="outlined" sx={{ bgcolor: 'success.50', borderColor: 'success.main' }}>
+                <Card variant="outlined" sx={{ borderColor: 'success.main' }}>
                   <CardContent>
-                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom color="success.main">
                       💬 Corpo da Mensagem (Body) - Obrigatório
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
@@ -612,7 +612,7 @@ export default function TemplateFormDialog({
                         sx={{
                           mb: 2,
                           p: 2,
-                          bgcolor: 'grey.50',
+                          bgcolor: 'action.hover',
                           borderRadius: 1,
                           border: '1px solid',
                           borderColor: 'divider',
@@ -673,18 +673,18 @@ export default function TemplateFormDialog({
 
           {/* Preview */}
           <Grid item xs={12}>
-            <Card variant="outlined" sx={{ bgcolor: 'info.50', borderColor: 'info.main' }}>
+            <Card variant="outlined" sx={{ borderColor: 'info.main' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <Visibility color="info" />
-                  <Typography variant="subtitle2" fontWeight={600}>
+                  <Typography variant="subtitle2" fontWeight={600} color="info.main">
                     Pré-visualização
                   </Typography>
                 </Box>
                 <Paper
                   sx={{
                     p: 2,
-                    bgcolor: 'white',
+                    bgcolor: 'background.paper',
                     minHeight: 100,
                     borderRadius: 2,
                     border: '1px solid',
@@ -693,7 +693,12 @@ export default function TemplateFormDialog({
                 >
                   <Typography
                     variant="body2"
-                    sx={{ whiteSpace: 'pre-wrap', fontFamily: 'system-ui', lineHeight: 1.5 }}
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'system-ui',
+                      lineHeight: 1.5,
+                      color: 'text.primary'
+                    }}
                   >
                     {getPreview() || 'Digite o conteúdo do template para ver o preview...'}
                   </Typography>
