@@ -70,6 +70,30 @@ export default function Templates() {
     loadOfficialApiStatus()
   }, [])
 
+  // Sincronização automática quando detectar API Oficial ativa
+  useEffect(() => {
+    if (!hasOfficialApi) return
+
+    // Sincronizar imediatamente ao detectar API Oficial
+    const autoSync = async () => {
+      try {
+        const response = await templatesApi.sync()
+        const { sentToMeta, importedFromMeta, updated } = response.data.data
+        console.log(`🔄 Auto-sync: Enviados: ${sentToMeta}, Importados: ${importedFromMeta}, Atualizados: ${updated}`)
+        await loadTemplates()
+      } catch (error) {
+        console.error('Erro na sincronização automática:', error)
+      }
+    }
+
+    autoSync()
+
+    // Timer para sincronizar a cada 5 minutos
+    const syncInterval = setInterval(autoSync, 5 * 60 * 1000)
+
+    return () => clearInterval(syncInterval)
+  }, [hasOfficialApi])
+
   const loadTemplates = async () => {
     setLoading(true)
     try {
@@ -484,19 +508,16 @@ export default function Templates() {
                     <Tooltip
                       title={
                         template.metaTemplateId
-                          ? 'Templates da API Oficial do Meta não podem ser editados. Crie um novo template se precisar fazer alterações.'
+                          ? 'Editar configurações (apenas delay e status)'
                           : 'Editar template'
                       }
                     >
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenDialog(template)}
-                          disabled={!!template.metaTemplateId}
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                      </span>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenDialog(template)}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title={template.metaTemplateId ? 'Deletar template (será removido do Meta também)' : 'Deletar template'}>
                       <IconButton size="small" color="error" onClick={() => handleDeleteClick(template)}>

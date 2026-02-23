@@ -18,7 +18,9 @@ export const createMessageTemplateValidator = vine.compile(
     headerType: vine.enum(['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT']).optional(),
     headerText: vine.string().trim().maxLength(60).optional(),
     headerMediaUrl: vine.string().url().optional(),
+    headerExample: vine.string().trim().maxLength(60).optional(), // Exemplo para variável {{1}} no header
     bodyText: vine.string().trim().minLength(1).maxLength(1024).optional(),
+    bodyExamples: vine.array(vine.string().trim()).optional(), // Exemplos para {{1}}, {{2}}, {{3}}, {{4}}...
     footerText: vine.string().trim().maxLength(60).optional(),
     buttons: vine
       .array(

@@ -77,7 +77,9 @@ export default class MessageTemplatesController {
           headerComponent.text = data.headerText || ''
           // Se tem variável {{1}} no header, adicionar example
           if (data.headerText?.includes('{{1}}')) {
-            headerComponent.example = { header_text: ['Exemplo Header'] }
+            headerComponent.example = {
+              header_text: [data.headerExample || 'João Silva']
+            }
           }
         } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(data.headerType)) {
           headerComponent.format = data.headerType
@@ -97,17 +99,27 @@ export default class MessageTemplatesController {
         text: data.bodyText,
       }
 
-      // Extrair variáveis {{1}}, {{2}}... e gerar examples
+      // Extrair variáveis {{1}}, {{2}}... e usar examples fornecidos ou defaults
       const variableMatches = [...data.bodyText.matchAll(/\{\{(\d+)\}\}/g)]
       if (variableMatches.length > 0) {
-        const examples = [
-          'João',
-          'Produto X e mais 2 itens',
-          'https://loja.com/cart/123',
-          'R$ 149,90',
+        // Examples padrão caso o usuário não forneça
+        const defaultExamples = [
+          'João Silva',                      // {{1}} = Nome
+          'Produto X e mais 2 itens',        // {{2}} = Produtos
+          'https://loja.com/cart/abc123',    // {{3}} = Link
+          'R$ 149,90',                       // {{4}} = Total
+          'R$ 50,00',                        // {{5}} = Desconto
+          '20/02/2026',                      // {{6}} = Data
+          'ABC123',                          // {{7}} = Código
         ]
+
+        // Usar examples fornecidos pelo usuário ou defaults
+        const finalExamples = data.bodyExamples && data.bodyExamples.length > 0
+          ? data.bodyExamples
+          : defaultExamples.slice(0, variableMatches.length)
+
         bodyComponent.example = {
-          body_text: [examples.slice(0, variableMatches.length)],
+          body_text: [finalExamples.slice(0, variableMatches.length)],
         }
       }
 
@@ -192,6 +204,24 @@ export default class MessageTemplatesController {
       .where('tenant_id', tenant.id)
       .firstOrFail()
 
+    // Se o template tem metaTemplateId (é da API Oficial),
+    // permitir apenas atualização de delayMinutes e isActive
+    if (template.metaTemplateId) {
+      const allowedFields: any = {}
+      if (data.delayMinutes !== undefined) allowedFields.delayMinutes = data.delayMinutes
+      if (data.isActive !== undefined) allowedFields.isActive = data.isActive
+
+      template.merge(allowedFields)
+      await template.save()
+
+      return response.ok({
+        success: true,
+        data: template,
+        message: 'Configurações do template atualizadas (Meta templates não podem ter conteúdo editado)',
+      })
+    }
+
+    // Template normal (não Meta), permitir todas as atualizações
     template.merge(data)
     await template.save()
 

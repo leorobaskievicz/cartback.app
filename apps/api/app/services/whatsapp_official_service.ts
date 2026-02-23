@@ -345,36 +345,6 @@ export class WhatsappOfficialService {
     }
   }
 
-  /**
-   * Deleta template do Meta WhatsApp
-   * @docs https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates
-   */
-  async deleteTemplate(credentials: OfficialCredentials, templateName: string): Promise<{ success: boolean }> {
-    try {
-      console.log(`🗑️ Deleting template "${templateName}" from Meta...`)
-
-      const response = await axios.delete(
-        `${this.baseUrl}/${credentials.wabaId}/message_templates`,
-        {
-          params: {
-            name: templateName,
-          },
-          headers: {
-            Authorization: `Bearer ${credentials.accessToken}`,
-          },
-        }
-      )
-
-      console.log(`✅ Template "${templateName}" deleted from Meta:`, response.data)
-
-      return { success: true }
-    } catch (error: any) {
-      console.error(`❌ Error deleting template from Meta:`, error.response?.data || error.message)
-      throw new Error(
-        error.response?.data?.error?.message || 'Erro ao deletar template do Meta'
-      )
-    }
-  }
 
   /**
    * Formata número de telefone para o padrão WhatsApp (sem + ou espaços)
