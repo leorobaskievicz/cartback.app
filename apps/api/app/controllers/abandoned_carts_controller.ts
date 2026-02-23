@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Tenant from '#models/tenant'
 import AbandonedCart from '#models/abandoned_cart'
 import MessageLog from '#models/message_log'
+import WhatsappOfficialLog from '#models/whatsapp_official_log'
+import MessageTemplate from '#models/message_template'
 
 export default class AbandonedCartsController {
   /**
@@ -72,11 +74,63 @@ export default class AbandonedCartsController {
       .preload('storeIntegration')
       .firstOrFail()
 
-    // Carregar logs de mensagem
+    // Carregar logs de mensagem (Evolution API)
     const messageLogs = await MessageLog.query()
       .where('abandoned_cart_id', cart.id)
       .preload('messageTemplate')
       .orderBy('created_at', 'asc')
+
+    // Carregar logs de mensagem (API Oficial)
+    const officialLogs = await WhatsappOfficialLog.query()
+      .where('abandoned_cart_id', cart.id)
+      .orderBy('created_at', 'asc')
+
+    // Buscar templates dos logs oficiais
+    const officialTemplateIds = officialLogs
+      .map((log) => log.officialTemplateId)
+      .filter((id) => id !== null)
+    const officialTemplates = await MessageTemplate.query().whereIn('id', officialTemplateIds)
+    const templateMap = new Map(officialTemplates.map((t) => [t.id, t]))
+
+    // Mesclar ambos os logs em um único array
+    const allMessages = [
+      ...messageLogs.map((log) => ({
+        id: `msg-${log.id}`,
+        type: 'evolution' as const,
+        templateName: log.messageTemplate.name,
+        delayMinutes: log.messageTemplate.delayMinutes,
+        content: log.content,
+        status: log.status,
+        sentAt: log.sentAt,
+        deliveredAt: log.deliveredAt,
+        readAt: log.readAt,
+        errorMessage: log.errorMessage,
+        createdAt: log.createdAt,
+      })),
+      ...officialLogs.map((log) => {
+        const template = log.officialTemplateId ? templateMap.get(log.officialTemplateId) : null
+        return {
+          id: `official-${log.id}`,
+          type: 'official' as const,
+          templateName: log.templateName,
+          delayMinutes: template?.delayMinutes || null,
+          messageType: log.messageType,
+          languageCode: log.languageCode,
+          status: log.status,
+          sentAt: log.sentAt,
+          metaMessageId: log.metaMessageId,
+          errorMessage: log.errorMessage,
+          createdAt: log.createdAt,
+        }
+      }),
+    ]
+
+    // Ordenar por data de criação
+    allMessages.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return dateA - dateB
+    })
 
     return response.ok({
       success: true,
@@ -100,17 +154,7 @@ export default class AbandonedCartsController {
             storeName: cart.storeIntegration.storeName,
           },
         },
-        messages: messageLogs.map((log) => ({
-          id: log.id,
-          templateName: log.messageTemplate.name,
-          delayMinutes: log.messageTemplate.delayMinutes,
-          content: log.content,
-          status: log.status,
-          sentAt: log.sentAt,
-          deliveredAt: log.deliveredAt,
-          readAt: log.readAt,
-          errorMessage: log.errorMessage,
-        })),
+        messages: allMessages,
       },
     })
   }

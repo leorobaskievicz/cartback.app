@@ -405,9 +405,11 @@ export default function Carts() {
                     },
                   }}
                 >
-                  {selectedCart.messages.map((message, index) => {
+                  {selectedCart.messages.map((message: any, index) => {
                     const getStatusInfo = () => {
                       switch (message.status) {
+                        case 'queued':
+                          return { label: 'Na fila', color: 'info' as const, icon: <Send fontSize="small" /> }
                         case 'sent':
                           return { label: 'Enviada', color: 'success' as const, icon: <Send fontSize="small" /> }
                         case 'delivered':
@@ -424,6 +426,10 @@ export default function Carts() {
                     }
 
                     const statusInfo = getStatusInfo()
+
+                    // Determinar tipo de API
+                    const apiType = message.type === 'official' ? 'API Oficial' : 'Evolution API'
+                    const messageTypeLabel = message.messageType === 'template' ? 'Template Meta' : message.messageType === 'text' ? 'Texto' : ''
 
                     // Calcular horário agendado baseado na criação do carrinho + delay
                     const scheduledAt = message.delayMinutes
@@ -449,10 +455,17 @@ export default function Carts() {
                             Status: {statusInfo.label}
                           </Typography>
 
+                          {/* Tipo de API e Tipo de Mensagem */}
+                          {message.type === 'official' && (
+                            <Typography variant="caption" color="primary" display="block">
+                              {apiType} {messageTypeLabel && `• ${messageTypeLabel}`}
+                            </Typography>
+                          )}
+
                           {/* Data agendada */}
-                          {scheduledAt && (
+                          {scheduledAt && message.status === 'queued' && (
                             <Typography variant="caption" color="text.secondary" display="block">
-                              Previsto: {scheduledAt.format('DD/MM/YYYY HH:mm')}
+                              Agendado para: {scheduledAt.format('DD/MM/YYYY HH:mm')}
                             </Typography>
                           )}
 
