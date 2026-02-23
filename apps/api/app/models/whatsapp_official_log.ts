@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Tenant from './tenant.js'
-import WhatsappOfficialTemplate from './whatsapp_official_template.js'
+import MessageTemplate from './message_template.js'
 
 export default class WhatsappOfficialLog extends BaseModel {
   static table = 'whatsapp_official_logs'
@@ -104,6 +104,6 @@ export default class WhatsappOfficialLog extends BaseModel {
   @belongsTo(() => Tenant)
   declare tenant: BelongsTo<typeof Tenant>
 
-  @belongsTo(() => WhatsappOfficialTemplate, { foreignKey: 'officialTemplateId' })
-  declare template: BelongsTo<typeof WhatsappOfficialTemplate>
+  @belongsTo(() => MessageTemplate, { foreignKey: 'officialTemplateId' })
+  declare template: BelongsTo<typeof MessageTemplate>
 }
