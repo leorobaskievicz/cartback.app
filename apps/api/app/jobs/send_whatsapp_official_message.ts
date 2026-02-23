@@ -54,16 +54,24 @@ export async function sendWhatsappOfficialMessage(
     return
   }
 
-  // 3. Buscar o template unificado (deve estar aprovado na Meta)
+  // 3. Buscar o template unificado
   const template = await MessageTemplate.find(templateId)
-  if (!template || template.metaStatus !== 'approved' || !template.metaTemplateId) {
+  if (!template) {
     officialLog.status = 'failed'
-    officialLog.errorMessage = 'Template não encontrado ou não aprovado na Meta'
+    officialLog.errorMessage = 'Template não encontrado'
     await officialLog.save()
-    console.log(
-      `[OfficialMsg] Template ${templateId} não encontrado ou não aprovado (metaStatus: ${template?.metaStatus})`
-    )
+    console.log(`[OfficialMsg] Template ${templateId} não encontrado`)
     return
+  }
+
+  // Verificar se template está aprovado na Meta ou será enviado como texto
+  const isApproved = template.metaStatus === 'approved' && template.metaTemplateId
+  const sendAsText = !isApproved
+
+  if (sendAsText) {
+    console.log(
+      `[OfficialMsg] Template ${templateId} não aprovado (status: ${template.metaStatus}), enviando como mensagem de texto`
+    )
   }
 
   // 4. Buscar credenciais
@@ -108,10 +116,6 @@ export async function sendWhatsappOfficialMessage(
   ]
 
   try {
-    console.log(
-      `[OfficialMsg] Enviando template Meta "${template.metaTemplateName}" (CartBack: "${template.name}") para ${cart.customerPhone}...`
-    )
-
     const credentials = {
       phoneNumberId: credential.phoneNumberId,
       wabaId: credential.wabaId,
@@ -119,17 +123,53 @@ export async function sendWhatsappOfficialMessage(
       webhookVerifyToken: credential.webhookVerifyToken,
     }
 
-    const result = await whatsappOfficialService.sendTemplateMessage(credentials, {
-      to: cart.customerPhone,
-      templateName: template.metaTemplateName!,
-      languageCode: template.metaLanguage,
-      components: [
-        {
-          type: 'body',
-          parameters: bodyParams.map((text) => ({ type: 'text', text })),
-        },
-      ],
-    })
+    let result: any
+
+    if (sendAsText) {
+      // Enviar como mensagem de texto (template não aprovado)
+      let textMessage = template.content || template.bodyText || ''
+
+      // Substituir variáveis Evolution {{nome}}, {{produtos}}, etc.
+      textMessage = textMessage
+        .replace(/\{\{nome\}\}/g, bodyParams[0])
+        .replace(/\{\{produtos\}\}/g, bodyParams[1])
+        .replace(/\{\{link\}\}/g, bodyParams[2])
+        .replace(/\{\{total\}\}/g, bodyParams[3])
+
+      // Substituir variáveis Meta {{1}}, {{2}}, {{3}}, {{4}}
+      textMessage = textMessage
+        .replace(/\{\{1\}\}/g, bodyParams[0])
+        .replace(/\{\{2\}\}/g, bodyParams[1])
+        .replace(/\{\{3\}\}/g, bodyParams[2])
+        .replace(/\{\{4\}\}/g, bodyParams[3])
+
+      console.log(
+        `[OfficialMsg] Enviando como TEXTO (template "${template.name}" não aprovado) para ${cart.customerPhone}`
+      )
+
+      result = await whatsappOfficialService.sendTextMessage(
+        credentials,
+        cart.customerPhone,
+        textMessage
+      )
+    } else {
+      // Enviar como template Meta aprovado
+      console.log(
+        `[OfficialMsg] Enviando template Meta "${template.metaTemplateName}" (CartBack: "${template.name}") para ${cart.customerPhone}...`
+      )
+
+      result = await whatsappOfficialService.sendTemplateMessage(credentials, {
+        to: cart.customerPhone,
+        templateName: template.metaTemplateName!,
+        languageCode: template.metaLanguage,
+        components: [
+          {
+            type: 'body',
+            parameters: bodyParams.map((text) => ({ type: 'text', text })),
+          },
+        ],
+      })
+    }
 
     // 7. Atualizar log com sucesso
     officialLog.status = 'sent'
