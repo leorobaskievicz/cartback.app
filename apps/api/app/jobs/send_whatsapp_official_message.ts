@@ -108,7 +108,7 @@ export async function sendWhatsappOfficialMessage(
 
   // 6. Montar os parâmetros das variáveis do template
   // Convenção: {{1}}=nome, {{2}}=produtos, {{3}}=link, {{4}}=total
-  const bodyParams = [
+  const allParams = [
     cart.customerName || 'Cliente',
     formatProducts(cart.items || []),
     cart.cartUrl || '',
@@ -131,17 +131,17 @@ export async function sendWhatsappOfficialMessage(
 
       // Substituir variáveis Evolution {{nome}}, {{produtos}}, etc.
       textMessage = textMessage
-        .replace(/\{\{nome\}\}/g, bodyParams[0])
-        .replace(/\{\{produtos\}\}/g, bodyParams[1])
-        .replace(/\{\{link\}\}/g, bodyParams[2])
-        .replace(/\{\{total\}\}/g, bodyParams[3])
+        .replace(/\{\{nome\}\}/g, allParams[0])
+        .replace(/\{\{produtos\}\}/g, allParams[1])
+        .replace(/\{\{link\}\}/g, allParams[2])
+        .replace(/\{\{total\}\}/g, allParams[3])
 
       // Substituir variáveis Meta {{1}}, {{2}}, {{3}}, {{4}}
       textMessage = textMessage
-        .replace(/\{\{1\}\}/g, bodyParams[0])
-        .replace(/\{\{2\}\}/g, bodyParams[1])
-        .replace(/\{\{3\}\}/g, bodyParams[2])
-        .replace(/\{\{4\}\}/g, bodyParams[3])
+        .replace(/\{\{1\}\}/g, allParams[0])
+        .replace(/\{\{2\}\}/g, allParams[1])
+        .replace(/\{\{3\}\}/g, allParams[2])
+        .replace(/\{\{4\}\}/g, allParams[3])
 
       console.log(
         `[OfficialMsg] Enviando como TEXTO (template "${template.name}" não aprovado) para ${cart.customerPhone}`
@@ -154,9 +154,38 @@ export async function sendWhatsappOfficialMessage(
       )
     } else {
       // Enviar como template Meta aprovado
+      // Detectar quantas variáveis o template tem baseado em meta_components
+      let paramCount = 4 // Default
+
+      if (template.metaComponents) {
+        try {
+          const components = typeof template.metaComponents === 'string'
+            ? JSON.parse(template.metaComponents)
+            : template.metaComponents
+
+          const bodyComponent = components.find((c: any) => c.type === 'BODY')
+          if (bodyComponent?.text) {
+            // Contar variáveis {{1}}, {{2}}, etc. no texto
+            const matches = bodyComponent.text.match(/\{\{\d+\}\}/g) || []
+            const maxIndex = matches
+              .map((m: string) => parseInt(m.replace(/\D/g, '')))
+              .reduce((max: number, num: number) => Math.max(max, num), 0)
+
+            paramCount = maxIndex
+            console.log(`[OfficialMsg] Template "${template.name}" tem ${paramCount} variáveis`)
+          }
+        } catch (error) {
+          console.error('[OfficialMsg] Erro ao parsear meta_components, usando 4 params:', error)
+        }
+      }
+
+      // Enviar apenas os parâmetros que o template usa
+      const bodyParams = allParams.slice(0, paramCount)
+
       console.log(
         `[OfficialMsg] Enviando template Meta "${template.metaTemplateName}" (CartBack: "${template.name}") para ${cart.customerPhone}...`
       )
+      console.log(`[OfficialMsg] Parâmetros (${bodyParams.length}):`, bodyParams)
 
       result = await whatsappOfficialService.sendTemplateMessage(credentials, {
         to: cart.customerPhone,
