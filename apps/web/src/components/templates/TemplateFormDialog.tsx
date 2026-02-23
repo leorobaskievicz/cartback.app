@@ -60,7 +60,9 @@ interface TemplateFormData {
   headerType?: 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
   headerText?: string
   headerMediaUrl?: string
+  headerExample?: string  // Exemplo para {{1}} no header
   bodyText?: string
+  bodyExamples?: string[]  // Exemplos para {{1}}, {{2}}, {{3}}, {{4}}...
   footerText?: string
   buttons?: TemplateButton[]
 }
@@ -127,7 +129,9 @@ export default function TemplateFormDialog({
     headerType: 'NONE',
     headerText: '',
     headerMediaUrl: '',
+    headerExample: '',
     bodyText: '',
+    bodyExamples: [],
     footerText: '',
     buttons: [],
   })
@@ -149,7 +153,9 @@ export default function TemplateFormDialog({
         headerType: 'NONE',
         headerText: '',
         headerMediaUrl: '',
+        headerExample: '',
         bodyText: template.content || '',
+        bodyExamples: [],
         footerText: '',
         buttons: [],
       })
@@ -167,7 +173,9 @@ export default function TemplateFormDialog({
         headerType: 'NONE',
         headerText: '',
         headerMediaUrl: '',
+        headerExample: '',
         bodyText: '',
+        bodyExamples: [],
         footerText: '',
         buttons: [],
       })
@@ -294,28 +302,88 @@ export default function TemplateFormDialog({
       </DialogTitle>
 
       <DialogContent>
-        <Grid container spacing={3} sx={{ mt: 0.5 }}>
-          {/* Campos comuns */}
-          <Grid item xs={12} md={8}>
-            <TextField
-              fullWidth
-              label="Nome do Template"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: Recuperação de Carrinho - 1 hora"
-              required
-              helperText="Nome interno para identificação"
-            />
-          </Grid>
+        {/* Se for template da API Oficial, mostrar apenas campos editáveis */}
+        {template?.metaTemplateId ? (
+          <Box sx={{ mt: 2 }}>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Template da API Oficial do Meta</strong><br />
+                Templates criados e aprovados pela Meta não podem ter seu conteúdo editado.<br />
+                Você pode apenas ajustar o tempo de disparo e ativar/desativar o template.
+              </Typography>
+            </Alert>
 
-          <Grid item xs={12} md={2}>
-            <TextField
-              fullWidth
-              type="number"
-              label="Delay (min)"
-              value={formData.delayMinutes}
-              onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })}
-              required
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nome do Template"
+                  value={formData.name}
+                  disabled
+                  helperText="Nome do template (não editável)"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Delay (minutos)"
+                  value={formData.delayMinutes}
+                  onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) || 60 })}
+                  required
+                  helperText="Tempo de espera antes de enviar a mensagem"
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    />
+                  }
+                  label="Template Ativo"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2, bgcolor: 'action.hover' }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                    Conteúdo do Template (somente leitura):
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
+                    {template.content}
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+        ) : (
+          <Grid container spacing={3} sx={{ mt: 0.5 }}>
+            {/* Campos comuns */}
+            <Grid item xs={12} md={8}>
+              <TextField
+                fullWidth
+                label="Nome do Template"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Recuperação de Carrinho - 1 hora"
+                required
+                helperText="Nome interno para identificação"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={2}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Delay (min)"
+                value={formData.delayMinutes}
+                onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })}
+                required
               inputProps={{ min: 1 }}
             />
           </Grid>
@@ -473,6 +541,20 @@ export default function TemplateFormDialog({
                           inputProps={{ maxLength: 60 }}
                           helperText={`${formData.headerText?.length || 0}/60 caracteres`}
                         />
+
+                        {/* Campo de Example para {{1}} no header */}
+                        {formData.headerText?.includes('{{1}}') && (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            sx={{ mt: 2 }}
+                            label="Exemplo para {{1}} no Header"
+                            value={formData.headerExample || ''}
+                            onChange={(e) => setFormData({ ...formData, headerExample: e.target.value })}
+                            placeholder="João Silva"
+                            helperText="Exemplo que será enviado ao Meta para aprovação do template"
+                          />
+                        )}
                       </>
                     )}
 
@@ -544,6 +626,62 @@ export default function TemplateFormDialog({
                         formData.bodyText || ''
                       )} variáveis encontradas`}
                     />
+
+                    {/* Campos de Examples para variáveis do Body */}
+                    {(() => {
+                      const bodyVarMatches = [...(formData.bodyText || '').matchAll(/\{\{(\d+)\}\}/g)]
+                      const uniqueVars = [...new Set(bodyVarMatches.map((m) => parseInt(m[1])))]
+                        .sort((a, b) => a - b)
+
+                      if (uniqueVars.length === 0) return null
+
+                      return (
+                        <Box sx={{ mt: 3 }}>
+                          <Alert severity="info" sx={{ mb: 2 }}>
+                            <Typography variant="body2">
+                              <strong>Exemplos de Variáveis</strong><br />
+                              Forneça exemplos para cada variável usada no body. Esses exemplos serão enviados para o Meta durante a aprovação do template.
+                            </Typography>
+                          </Alert>
+
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                            <strong>Mapeamento de Variáveis (fixo):</strong><br />
+                            • {'{'}{'{'}{'}'}1{'}'}{'}'} = Nome do cliente<br />
+                            • {'{'}{'{'}{'}'}2{'}'}{'}'} = Produtos<br />
+                            • {'{'}{'{'}{'}'}3{'}'}{'}'} = Link do carrinho<br />
+                            • {'{'}{'{'}{'}'}4{'}'}{'}'} = Valor total<br />
+                            • {'{'}{'{'}{'}'}5{'}'}{'}'} = Desconto<br />
+                            • {'{'}{'{'}{'}'}6{'}'}{'}'} = Data<br />
+                            • {'{'}{'{'}{'}'}7{'}'}{'}'} = Código
+                          </Typography>
+
+                          <Grid container spacing={2}>
+                            {uniqueVars.map((varIndex) => {
+                              const varInfo = META_VARIABLES.find((v) => v.index === varIndex)
+                              const currentExamples = formData.bodyExamples || []
+
+                              return (
+                                <Grid item xs={12} md={6} key={varIndex}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label={`Exemplo para {{${varIndex}}} - ${varInfo?.label || `Variável ${varIndex}`}`}
+                                    value={currentExamples[varIndex - 1] || ''}
+                                    onChange={(e) => {
+                                      const newExamples = [...(formData.bodyExamples || [])]
+                                      newExamples[varIndex - 1] = e.target.value
+                                      setFormData({ ...formData, bodyExamples: newExamples })
+                                    }}
+                                    placeholder={varInfo?.example || `Exemplo ${varIndex}`}
+                                    helperText={`Será usado durante a aprovação no Meta`}
+                                  />
+                                </Grid>
+                              )
+                            })}
+                          </Grid>
+                        </Box>
+                      )
+                    })()}
                   </CardContent>
                 </Card>
               </Grid>
@@ -671,42 +809,43 @@ export default function TemplateFormDialog({
             </>
           )}
 
-          {/* Preview */}
-          <Grid item xs={12}>
-            <Card variant="outlined" sx={{ borderColor: 'info.main' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <Visibility color="info" />
-                  <Typography variant="subtitle2" fontWeight={600} color="info.main">
-                    Pré-visualização
-                  </Typography>
-                </Box>
-                <Paper
-                  sx={{
-                    p: 2,
-                    bgcolor: 'background.paper',
-                    minHeight: 100,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Typography
-                    variant="body2"
+            {/* Preview */}
+            <Grid item xs={12}>
+              <Card variant="outlined" sx={{ borderColor: 'info.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Visibility color="info" />
+                    <Typography variant="subtitle2" fontWeight={600} color="info.main">
+                      Pré-visualização
+                    </Typography>
+                  </Box>
+                  <Paper
                     sx={{
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'system-ui',
-                      lineHeight: 1.5,
-                      color: 'text.primary'
+                      p: 2,
+                      bgcolor: 'background.paper',
+                      minHeight: 100,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
                     }}
                   >
-                    {getPreview() || 'Digite o conteúdo do template para ver o preview...'}
-                  </Typography>
-                </Paper>
-              </CardContent>
-            </Card>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'system-ui',
+                        lineHeight: 1.5,
+                        color: 'text.primary'
+                      }}
+                    >
+                      {getPreview() || 'Digite o conteúdo do template para ver o preview...'}
+                    </Typography>
+                  </Paper>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-        </Grid>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
