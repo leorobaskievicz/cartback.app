@@ -16,6 +16,8 @@ const NuvemshopScriptWebhookController = () => import('#controllers/webhooks/nuv
 const AsaasWebhookController = () => import('#controllers/webhooks/asaas_webhook_controller')
 const CustomWebhookController = () => import('#controllers/webhooks/custom_webhook_controller')
 const WhatsappSendWebhookController = () => import('#controllers/webhooks/whatsapp_send_webhook_controller')
+const WhatsappBatchSendWebhookController = () => import('#controllers/webhooks/whatsapp_batch_send_webhook_controller')
+const TemplateSendWebhookController = () => import('#controllers/webhooks/template_send_webhook_controller')
 // WhatsApp Official API Controllers
 const WhatsappOfficialCredentialsController = () => import('#controllers/whatsapp_official_credentials_controller')
 const WhatsappOfficialTemplatesController = () => import('#controllers/whatsapp_official_templates_controller')
@@ -70,6 +72,8 @@ router
     router.post('/custom/:tenantUuid', [CustomWebhookController, 'receive'])
     router.post('/custom/:tenantUuid/order', [CustomWebhookController, 'orderCreated'])
     router.post('/custom/:tenantUuid/whatsapp/send', [WhatsappSendWebhookController, 'send'])
+    router.post('/custom/:tenantUuid/whatsapp/batch-send', [WhatsappBatchSendWebhookController, 'send'])
+    router.post('/custom/:tenantUuid/template/send', [TemplateSendWebhookController, 'send'])
     router.get('/custom/docs', [CustomWebhookController, 'docs'])
     router.post('/whatsapp', [WhatsappController, 'webhook'])
     router.get('/whatsapp-official/:tenantUuid', [WhatsappOfficialWebhookController, 'verify'])

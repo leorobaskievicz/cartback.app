@@ -7,8 +7,8 @@ import vine from '@vinejs/vine'
 export const createMessageTemplateValidator = vine.compile(
   vine.object({
     name: vine.string().trim().minLength(3).maxLength(100),
-    triggerType: vine.enum(['abandoned_cart', 'tracking_update']).optional(),
-    delayMinutes: vine.number().min(0).max(10080), // Max 7 dias
+    triggerType: vine.enum(['abandoned_cart', 'tracking_update', 'manual']).optional(),
+    delayMinutes: vine.number().min(0).max(10080).optional(), // Opcional para templates manuais
     content: vine.string().trim().optional(), // Opcional se usar metaMode
     isActive: vine.boolean().optional(),
     // Campos Meta API (opcionais)

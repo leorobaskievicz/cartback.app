@@ -53,6 +53,7 @@ interface TemplateButton {
 interface TemplateFormData {
   name: string
   content: string
+  triggerType?: 'abandoned_cart' | 'manual'
   delayMinutes: number
   isActive: boolean
   metaLanguage?: string
@@ -98,14 +99,12 @@ const EVOLUTION_VARIABLES = [
   { key: 'total', label: 'Valor Total', example: 'R$ 149,90' },
 ]
 
+// Variáveis nomeadas para o usuário (serão convertidas para {{1}}, {{2}}, etc no backend)
 const META_VARIABLES = [
-  { index: 1, label: 'Nome', example: 'João Silva' },
-  { index: 2, label: 'Produtos', example: 'Produto X e mais 2 itens' },
-  { index: 3, label: 'Valor Total', example: 'R$ 149,90' },
-  { index: 4, label: 'Link', example: 'https://loja.com/cart/123' },
-  { index: 5, label: 'Desconto', example: 'R$ 50,00' },
-  { index: 6, label: 'Data', example: '20/02/2026' },
-  { index: 7, label: 'Código', example: 'ABC123' },
+  { key: 'nome', label: 'Nome do Cliente', example: 'João Silva' },
+  { key: 'produtos', label: 'Produtos do Carrinho', example: 'Produto X e mais 2 itens' },
+  { key: 'link', label: 'Link do Carrinho', example: 'https://loja.com/cart/123' },
+  { key: 'total', label: 'Valor Total', example: 'R$ 149,90' },
 ]
 
 export default function TemplateFormDialog({
@@ -122,6 +121,7 @@ export default function TemplateFormDialog({
   const [formData, setFormData] = useState<TemplateFormData>({
     name: '',
     content: '',
+    triggerType: 'abandoned_cart',
     delayMinutes: 60,
     isActive: true,
     metaLanguage: 'pt_BR',
@@ -146,6 +146,7 @@ export default function TemplateFormDialog({
       setFormData({
         name: template.name,
         content: template.content || '',
+        triggerType: template.triggerType || 'abandoned_cart',
         delayMinutes: template.delayMinutes,
         isActive: template.isActive,
         metaLanguage: template.metaLanguage || 'pt_BR',
@@ -166,6 +167,7 @@ export default function TemplateFormDialog({
       setFormData({
         name: '',
         content: '',
+        triggerType: 'abandoned_cart',
         delayMinutes: 60,
         isActive: true,
         metaLanguage: 'pt_BR',
@@ -232,7 +234,7 @@ export default function TemplateFormDialog({
   }
 
   const countVariables = (text: string) => {
-    const matches = text.match(/\{\{(\d+)\}\}/g)
+    const matches = text.match(/\{\{(nome|produtos|link|total)\}\}/g)
     return matches ? matches.length : 0
   }
 
@@ -246,12 +248,16 @@ export default function TemplateFormDialog({
     } else {
       let preview = ''
       if (formData.headerType === 'TEXT' && formData.headerText) {
-        preview += `📌 ${formData.headerText.replace(/\{\{1\}\}/, 'João Silva')}\n\n`
+        let header = formData.headerText
+        META_VARIABLES.forEach((v) => {
+          header = header.replace(new RegExp(`\\{\\{${v.key}\\}\\}`, 'g'), v.example)
+        })
+        preview += `📌 ${header}\n\n`
       }
       if (formData.bodyText) {
         let body = formData.bodyText
         META_VARIABLES.forEach((v) => {
-          body = body.replace(new RegExp(`\\{\\{${v.index}\\}\\}`, 'g'), v.example)
+          body = body.replace(new RegExp(`\\{\\{${v.key}\\}\\}`, 'g'), v.example)
         })
         preview += body
       }
@@ -364,7 +370,7 @@ export default function TemplateFormDialog({
         ) : (
           <Grid container spacing={3} sx={{ mt: 0.5 }}>
             {/* Campos comuns */}
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={formData.triggerType === 'manual' ? 10 : 6}>
               <TextField
                 fullWidth
                 label="Nome do Template"
@@ -377,29 +383,57 @@ export default function TemplateFormDialog({
             </Grid>
 
             <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Delay (min)"
-                value={formData.delayMinutes}
-                onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })}
-                required
-              inputProps={{ min: 1 }}
-            />
-          </Grid>
+              <FormControl fullWidth>
+                <InputLabel>Tipo</InputLabel>
+                <Select
+                  value={formData.triggerType}
+                  onChange={(e) => setFormData({ ...formData, triggerType: e.target.value as any })}
+                  label="Tipo"
+                >
+                  <MenuItem value="abandoned_cart">🛒 Carrinho Abandonado</MenuItem>
+                  <MenuItem value="manual">📤 Disparo Manual</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-          <Grid item xs={12} md={2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+            {formData.triggerType === 'abandoned_cart' && (
+              <Grid item xs={12} md={2}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Delay (min)"
+                  value={formData.delayMinutes}
+                  onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })}
+                  required
+                  inputProps={{ min: 1 }}
                 />
-              }
-              label="Ativo"
-              sx={{ mt: 1 }}
-            />
-          </Grid>
+              </Grid>
+            )}
+
+            <Grid item xs={12} md={2}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  />
+                }
+                label="Ativo"
+                sx={{ mt: 1 }}
+              />
+            </Grid>
+
+            {formData.triggerType === 'manual' && (
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    <strong>Template de Disparo Manual</strong><br />
+                    Este template só será enviado quando você chamar o webhook de disparo.<br />
+                    Ele não será processado automaticamente pelo sistema de carrinhos abandonados.
+                  </Typography>
+                </Alert>
+              </Grid>
+            )}</Grid>
 
           {/* MODO SIMPLES - Evolution API */}
           {mode === 'simple' && (
@@ -517,44 +551,33 @@ export default function TemplateFormDialog({
                       <>
                         <Alert severity="info" sx={{ mt: 2, mb: 1 }}>
                           <Typography variant="caption">
-                            Header TEXT pode ter 1 variável: {'{'}
-                            {'{'}1{'}'}
-                            {'}'}
+                            Header TEXT pode ter variáveis. Clique para inserir:
                           </Typography>
                         </Alert>
-                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                          <Chip
-                            label="{{1}}"
-                            size="small"
-                            onClick={() => insertVariable('{{1}}', 'headerText')}
-                            icon={<Add />}
-                            color="secondary"
-                          />
+                        <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                          {META_VARIABLES.map((v) => (
+                            <Chip
+                              key={v.key}
+                              label={`{{${v.key}}}`}
+                              size="small"
+                              onClick={() => insertVariable(`{{${v.key}}}`, 'headerText')}
+                              icon={<Add />}
+                              color="secondary"
+                              variant="outlined"
+                              sx={{ cursor: 'pointer' }}
+                            />
+                          ))}
                         </Stack>
                         <TextField
                           fullWidth
                           label="Texto do Header"
                           value={formData.headerText}
                           onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
-                          placeholder="Ex: Oferta Especial! ou Seu pedido {{1}}"
+                          placeholder="Ex: Oferta Especial! ou Olá {{nome}}"
                           inputRef={headerTextRef}
                           inputProps={{ maxLength: 60 }}
                           helperText={`${formData.headerText?.length || 0}/60 caracteres`}
                         />
-
-                        {/* Campo de Example para {{1}} no header */}
-                        {formData.headerText?.includes('{{1}}') && (
-                          <TextField
-                            fullWidth
-                            size="small"
-                            sx={{ mt: 2 }}
-                            label="Exemplo para {{1}} no Header"
-                            value={formData.headerExample || ''}
-                            onChange={(e) => setFormData({ ...formData, headerExample: e.target.value })}
-                            placeholder="João Silva"
-                            helperText="Exemplo que será enviado ao Meta para aprovação do template"
-                          />
-                        )}
                       </>
                     )}
 
@@ -587,21 +610,16 @@ export default function TemplateFormDialog({
                       💬 Corpo da Mensagem (Body) - Obrigatório
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                      Clique nas variáveis para inserir. Use {'{'}
-                      {'{'}1{'}'}{'}'}
-, {'{'}
-                      {'{'}2{'}'}
-                      {'}'}
-                      ... em sequência
+                      Clique nas variáveis para inserir
                     </Typography>
 
                     <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
                       {META_VARIABLES.map((v) => (
-                        <Tooltip key={v.index} title={v.label}>
+                        <Tooltip key={v.key} title={v.label}>
                           <Chip
-                            label={`{{${v.index}}}`}
+                            label={`{{${v.key}}}`}
                             size="small"
-                            onClick={() => insertVariable(`{{${v.index}}}`, 'bodyText')}
+                            onClick={() => insertVariable(`{{${v.key}}}`, 'bodyText')}
                             icon={<Add />}
                             color="success"
                             variant="outlined"
@@ -618,7 +636,7 @@ export default function TemplateFormDialog({
                       label="Texto do Body"
                       value={formData.bodyText}
                       onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
-                      placeholder="Oi {{1}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{2}}&#10;&#10;Total: {{3}}&#10;&#10;Finalize sua compra: {{4}}"
+                      placeholder="Oi {{nome}}! Vi que você deixou itens no carrinho 🛒&#10;&#10;{{produtos}}&#10;&#10;Total: {{total}}&#10;&#10;Finalize sua compra: {{link}}"
                       required
                       inputRef={bodyTextRef}
                       inputProps={{ maxLength: 1024 }}
@@ -629,9 +647,8 @@ export default function TemplateFormDialog({
 
                     {/* Campos de Examples para variáveis do Body */}
                     {(() => {
-                      const bodyVarMatches = [...(formData.bodyText || '').matchAll(/\{\{(\d+)\}\}/g)]
-                      const uniqueVars = [...new Set(bodyVarMatches.map((m) => parseInt(m[1])))]
-                        .sort((a, b) => a - b)
+                      const bodyVarMatches = [...(formData.bodyText || '').matchAll(/\{\{(nome|produtos|link|total)\}\}/g)]
+                      const uniqueVars = [...new Set(bodyVarMatches.map((m) => m[1]))]
 
                       if (uniqueVars.length === 0) return null
 
@@ -644,36 +661,25 @@ export default function TemplateFormDialog({
                             </Typography>
                           </Alert>
 
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                            <strong>Mapeamento de Variáveis (fixo):</strong><br />
-                            • {'{'}{'{'}{'}'}1{'}'}{'}'} = Nome do cliente<br />
-                            • {'{'}{'{'}{'}'}2{'}'}{'}'} = Produtos<br />
-                            • {'{'}{'{'}{'}'}3{'}'}{'}'} = Link do carrinho<br />
-                            • {'{'}{'{'}{'}'}4{'}'}{'}'} = Valor total<br />
-                            • {'{'}{'{'}{'}'}5{'}'}{'}'} = Desconto<br />
-                            • {'{'}{'{'}{'}'}6{'}'}{'}'} = Data<br />
-                            • {'{'}{'{'}{'}'}7{'}'}{'}'} = Código
-                          </Typography>
-
                           <Grid container spacing={2}>
-                            {uniqueVars.map((varIndex) => {
-                              const varInfo = META_VARIABLES.find((v) => v.index === varIndex)
-                              const currentExamples = formData.bodyExamples || []
+                            {uniqueVars.map((varKey) => {
+                              const varInfo = META_VARIABLES.find((v) => v.key === varKey)
+                              if (!varInfo) return null
 
                               return (
-                                <Grid item xs={12} md={6} key={varIndex}>
+                                <Grid item xs={12} md={6} key={varKey}>
                                   <TextField
                                     fullWidth
                                     size="small"
-                                    label={`Exemplo para {{${varIndex}}} - ${varInfo?.label || `Variável ${varIndex}`}`}
-                                    value={currentExamples[varIndex - 1] || ''}
+                                    label={`Exemplo para {{${varKey}}} - ${varInfo.label}`}
+                                    value={(formData.bodyExamples as any)?.[varKey] || ''}
                                     onChange={(e) => {
-                                      const newExamples = [...(formData.bodyExamples || [])]
-                                      newExamples[varIndex - 1] = e.target.value
-                                      setFormData({ ...formData, bodyExamples: newExamples })
+                                      const newExamples = { ...(formData.bodyExamples as any || {}) }
+                                      newExamples[varKey] = e.target.value
+                                      setFormData({ ...formData, bodyExamples: newExamples as any })
                                     }}
-                                    placeholder={varInfo?.example || `Exemplo ${varIndex}`}
-                                    helperText={`Será usado durante a aprovação no Meta`}
+                                    placeholder={varInfo.example}
+                                    helperText="Será usado durante a aprovação no Meta"
                                   />
                                 </Grid>
                               )
