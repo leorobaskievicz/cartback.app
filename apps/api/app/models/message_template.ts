@@ -15,7 +15,7 @@ export default class MessageTemplate extends BaseModel {
   declare name: string
 
   @column()
-  declare triggerType: 'abandoned_cart' | 'tracking_update'
+  declare triggerType: 'abandoned_cart' | 'tracking_update' | 'manual'
 
   @column()
   declare delayMinutes: number
@@ -67,6 +67,25 @@ export default class MessageTemplate extends BaseModel {
     },
   })
   declare metaComponents: any | null
+
+  @column({
+    prepare: (value: any) => {
+      if (!value) return null
+      if (typeof value === 'string') return value
+      return JSON.stringify(value)
+    },
+    consume: (value: string | null) => {
+      if (!value) return null
+      if (typeof value === 'object') return value
+      try {
+        return JSON.parse(value)
+      } catch (error) {
+        console.error('Failed to parse variableMapping JSON:', value, error)
+        return null
+      }
+    },
+  })
+  declare variableMapping: Record<string, number> | null
 
   @column()
   declare metaRejectionReason: string | null

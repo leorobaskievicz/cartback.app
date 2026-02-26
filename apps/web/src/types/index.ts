@@ -86,7 +86,7 @@ export interface WhatsAppHealthMetrics {
 export interface MessageTemplate {
   id: number
   name: string
-  triggerType: 'abandoned_cart' | 'order_confirmation'
+  triggerType: 'abandoned_cart' | 'order_confirmation' | 'manual'
   delayMinutes: number
   content: string
   isActive: boolean

@@ -15,11 +15,13 @@ export interface SendOfficialMessageData {
 }
 
 /**
- * Variáveis disponíveis para templates da API Oficial:
- *   {{1}} = Nome do cliente
- *   {{2}} = Produto(s)
- *   {{3}} = Link do carrinho
- *   {{4}} = Valor total
+ * Variáveis disponíveis para templates (formato amigável para usuário):
+ *   {{nome}} = Nome do cliente   → Convertido para {{1}} internamente
+ *   {{produtos}} = Produto(s)    → Convertido para {{2}} internamente
+ *   {{link}} = Link do carrinho  → Convertido para {{3}} internamente
+ *   {{total}} = Valor total      → Convertido para {{4}} internamente
+ *
+ * O frontend exibe variáveis nomeadas, mas o backend converte para numeradas ao enviar ao Meta.
  */
 export async function sendWhatsappOfficialMessage(
   job: Job<SendOfficialMessageData>
@@ -107,13 +109,40 @@ export async function sendWhatsappOfficialMessage(
   }
 
   // 6. Montar os parâmetros das variáveis do template
-  // Convenção: {{1}}=nome, {{2}}=produtos, {{3}}=link, {{4}}=total
-  const allParams = [
-    cart.customerName || 'Cliente',
-    formatProducts(cart.items || []),
-    cart.cartUrl || '',
-    formatCurrency(cart.totalValue || 0),
-  ]
+  // Pool de valores disponíveis
+  const availableValues: Record<string, string> = {
+    nome: cart.customerName || 'Cliente',
+    produtos: formatProducts(cart.items || []),
+    link: cart.cartUrl || '',
+    total: formatCurrency(cart.totalValue || 0),
+  }
+
+  // Usar variableMapping para montar parâmetros na ordem correta
+  let allParams: string[]
+
+  if (template.variableMapping) {
+    // Template tem mapeamento dinâmico - usar ele
+    console.log(`[OfficialMsg] Usando variableMapping:`, template.variableMapping)
+
+    // Criar array com o tamanho correto
+    const maxIndex = Math.max(...Object.values(template.variableMapping))
+    allParams = new Array(maxIndex)
+
+    // Preencher cada posição baseado no mapeamento
+    // Ex: {link: 1, total: 2, nome: 3} → allParams[0] = link, allParams[1] = total, allParams[2] = nome
+    Object.entries(template.variableMapping).forEach(([varName, index]) => {
+      allParams[index - 1] = availableValues[varName] || ''
+    })
+  } else {
+    // Fallback: ordem fixa antiga (compatibilidade com templates antigos)
+    console.log(`[OfficialMsg] Template sem variableMapping, usando ordem fixa padrão`)
+    allParams = [
+      availableValues.nome,
+      availableValues.produtos,
+      availableValues.link,
+      availableValues.total,
+    ]
+  }
 
   try {
     const credentials = {
@@ -198,14 +227,21 @@ export async function sendWhatsappOfficialMessage(
           },
         ],
       })
-    }
 
-    // 7. Atualizar log com sucesso
-    officialLog.status = 'sent'
-    officialLog.metaMessageId = result?.messages?.[0]?.id || null
-    officialLog.bodyParams = JSON.stringify(bodyParams)
-    officialLog.sentAt = DateTime.now()
-    await officialLog.save()
+      // 7. Atualizar log com sucesso
+      officialLog.status = 'sent'
+      officialLog.metaMessageId = result?.messages?.[0]?.id || null
+      officialLog.bodyParams = JSON.stringify(bodyParams)
+      officialLog.sentAt = DateTime.now()
+      await officialLog.save()
+    } else {
+      // Para mensagens de texto, salvar allParams
+      officialLog.status = 'sent'
+      officialLog.metaMessageId = result?.messages?.[0]?.id || null
+      officialLog.bodyParams = JSON.stringify(allParams)
+      officialLog.sentAt = DateTime.now()
+      await officialLog.save()
+    }
 
     // 8. Incrementar contador de mensagens
     if (subscription) {

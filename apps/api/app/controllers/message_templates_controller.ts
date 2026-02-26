@@ -15,6 +15,74 @@ import {
 } from '#validators/message_template'
 import vine from '@vinejs/vine'
 
+/**
+ * Extrai variáveis nomeadas na ordem que aparecem no texto e cria mapeamento dinâmico
+ * Ex: "Oi {{nome}}! Total: {{total}}. Link: {{link}}"
+ * → { variableMapping: { nome: 1, total: 2, link: 3 }, convertedText: "Oi {{1}}! Total: {{2}}. Link: {{3}}" }
+ */
+function convertNamedVariablesToNumbered(text: string): {
+  convertedText: string
+  variableMapping: Record<string, number>
+  orderedVariables: string[]
+} {
+  // Regex para capturar variáveis nomeadas: {{nome}}, {{produtos}}, {{link}}, {{total}}
+  const regex = /\{\{(nome|produtos|link|total)\}\}/g
+  const matches = [...text.matchAll(regex)]
+
+  // Extrair nomes únicos na ordem de aparição
+  const seenVariables = new Set<string>()
+  const orderedVariables: string[] = []
+
+  matches.forEach(match => {
+    const varName = match[1]
+    if (!seenVariables.has(varName)) {
+      seenVariables.add(varName)
+      orderedVariables.push(varName)
+    }
+  })
+
+  // Criar mapeamento: { nome: 1, total: 2, link: 3 }
+  const variableMapping: Record<string, number> = {}
+  orderedVariables.forEach((varName, index) => {
+    variableMapping[varName] = index + 1
+  })
+
+  // Substituir variáveis nomeadas pelas numeradas
+  let convertedText = text
+  orderedVariables.forEach((varName, index) => {
+    const regex = new RegExp(`\\{\\{${varName}\\}\\}`, 'g')
+    convertedText = convertedText.replace(regex, `{{${index + 1}}}`)
+  })
+
+  return { convertedText, variableMapping, orderedVariables }
+}
+
+/**
+ * Converte exemplos baseado no mapeamento de variáveis
+ * Ex: bodyExamples = {nome: 'João', total: 'R$ 100'}, mapping = {nome: 1, total: 2}
+ * → ['João', 'R$ 100']
+ */
+function convertNamedExamplesToArray(bodyExamples: any, variableMapping: Record<string, number>): string[] {
+  if (!bodyExamples || typeof bodyExamples !== 'object') return []
+
+  const defaultExamples: Record<string, string> = {
+    nome: 'João Silva',
+    produtos: 'Produto X e mais 2 itens',
+    link: 'https://loja.com/cart/abc123',
+    total: 'R$ 149,90',
+  }
+
+  // Criar array ordenado baseado no mapeamento
+  const maxIndex = Math.max(...Object.values(variableMapping))
+  const result: string[] = new Array(maxIndex)
+
+  Object.entries(variableMapping).forEach(([varName, index]) => {
+    result[index - 1] = bodyExamples[varName] || defaultExamples[varName] || `Exemplo ${index}`
+  })
+
+  return result
+}
+
 export default class MessageTemplatesController {
   /**
    * GET /api/templates
@@ -68,17 +136,30 @@ export default class MessageTemplatesController {
       // Modo Meta: construir components completos
       const components: any[] = []
 
+      // Converter variáveis nomeadas para numeradas de forma dinâmica baseada na ordem de aparição
+      const bodyConversion = convertNamedVariablesToNumbered(data.bodyText)
+      const headerConversion = data.headerText ? convertNamedVariablesToNumbered(data.headerText) : null
+
+      // Usar o mapeamento do body (pois é obrigatório e tem mais variáveis)
+      const variableMapping = bodyConversion.variableMapping
+      const convertedBodyText = bodyConversion.convertedText
+      const convertedHeaderText = headerConversion?.convertedText || ''
+
       // HEADER
       if (data.headerType && data.headerType !== 'NONE') {
         const headerComponent: any = { type: 'HEADER' }
 
         if (data.headerType === 'TEXT') {
           headerComponent.format = 'TEXT'
-          headerComponent.text = data.headerText || ''
-          // Se tem variável {{1}} no header, adicionar example
-          if (data.headerText?.includes('{{1}}')) {
+          headerComponent.text = convertedHeaderText
+          // Se tem variável {{1}}, {{2}}, etc no header, adicionar example
+          const headerVarMatches = [...convertedHeaderText.matchAll(/\{\{(\d+)\}\}/g)]
+          if (headerVarMatches.length > 0) {
+            const defaultExamples = ['João Silva', 'Produto X e mais 2 itens', 'https://loja.com/cart/abc123', 'R$ 149,90']
             headerComponent.example = {
-              header_text: [data.headerExample || 'João Silva']
+              header_text: headerVarMatches.map((m, idx) =>
+                data.headerExample || defaultExamples[parseInt(m[1]) - 1] || `Exemplo ${m[1]}`
+              )
             }
           }
         } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(data.headerType)) {
@@ -96,30 +177,33 @@ export default class MessageTemplatesController {
       // BODY (obrigatório)
       const bodyComponent: any = {
         type: 'BODY',
-        text: data.bodyText,
+        text: convertedBodyText,
       }
 
       // Extrair variáveis {{1}}, {{2}}... e usar examples fornecidos ou defaults
-      const variableMatches = [...data.bodyText.matchAll(/\{\{(\d+)\}\}/g)]
+      const variableMatches = [...convertedBodyText.matchAll(/\{\{(\d+)\}\}/g)]
       if (variableMatches.length > 0) {
-        // Examples padrão caso o usuário não forneça
+        // Examples padrão
         const defaultExamples = [
           'João Silva',                      // {{1}} = Nome
           'Produto X e mais 2 itens',        // {{2}} = Produtos
           'https://loja.com/cart/abc123',    // {{3}} = Link
           'R$ 149,90',                       // {{4}} = Total
-          'R$ 50,00',                        // {{5}} = Desconto
-          '20/02/2026',                      // {{6}} = Data
-          'ABC123',                          // {{7}} = Código
         ]
 
-        // Usar examples fornecidos pelo usuário ou defaults
-        const finalExamples = data.bodyExamples && data.bodyExamples.length > 0
-          ? data.bodyExamples
-          : defaultExamples.slice(0, variableMatches.length)
+        // Converter bodyExamples usando o mapeamento dinâmico
+        let finalExamples: string[]
+        if (data.bodyExamples && typeof data.bodyExamples === 'object' && !Array.isArray(data.bodyExamples)) {
+          finalExamples = convertNamedExamplesToArray(data.bodyExamples, variableMapping)
+        } else if (Array.isArray(data.bodyExamples) && data.bodyExamples.length > 0) {
+          finalExamples = data.bodyExamples
+        } else {
+          // Criar exemplos padrão baseado no mapeamento
+          finalExamples = convertNamedExamplesToArray({}, variableMapping)
+        }
 
         bodyComponent.example = {
-          body_text: [finalExamples.slice(0, variableMatches.length)],
+          body_text: [finalExamples],
         }
       }
 
@@ -151,22 +235,65 @@ export default class MessageTemplatesController {
       }
 
       metaComponents = components
-      content = data.bodyText // Salvar bodyText como content também
-    }
+      // Salvar bodyText original (com variáveis nomeadas) como content para exibição no painel
+      content = data.bodyText
 
-    const template = await MessageTemplate.create({
-      tenantId: tenant.id,
-      name: data.name,
-      triggerType: data.triggerType || 'abandoned_cart',
-      delayMinutes: data.delayMinutes,
-      content,
-      isActive: data.isActive ?? true,
-      sortOrder: (maxSortOrder.$extras.max || 0) + 1,
-      metaStatus: 'not_synced',
-      metaLanguage: data.metaLanguage || 'pt_BR',
-      metaCategory: data.metaCategory || 'MARKETING',
-      metaComponents,
-    })
+      // Criar template com mapeamento de variáveis
+      const triggerType = data.triggerType || 'abandoned_cart'
+      const template = await MessageTemplate.create({
+        tenantId: tenant.id,
+        name: data.name,
+        triggerType,
+        delayMinutes: triggerType === 'manual' ? 0 : (data.delayMinutes || 60),
+        content,
+        isActive: data.isActive ?? true,
+        sortOrder: (maxSortOrder.$extras.max || 0) + 1,
+        metaStatus: 'not_synced',
+        metaLanguage: data.metaLanguage || 'pt_BR',
+        metaCategory: data.metaCategory || 'MARKETING',
+        metaComponents,
+        variableMapping, // Salvar mapeamento dinâmico
+      })
+
+      console.log(`✅ Template ${template.id} criado com mapeamento:`, variableMapping)
+
+      // Auto-sync com Meta se API Oficial está ativa
+      const officialCredential = await WhatsappOfficialCredential.query()
+        .where('tenant_id', tenant.id)
+        .where('is_active', true)
+        .first()
+
+      if (officialCredential) {
+        try {
+          await templateSyncService.syncTemplateToMeta(template, officialCredential)
+          console.log(`✅ Template ${template.id} auto-synced to Meta`)
+        } catch (error) {
+          console.error(`⚠️ Failed to auto-sync template to Meta:`, error)
+          // Não falhar a criação do template, apenas logar erro
+        }
+      }
+
+      return response.created({
+        success: true,
+        data: template,
+      })
+    } else {
+      // Modo simples: criar template sem metaComponents
+      const triggerType = data.triggerType || 'abandoned_cart'
+      const template = await MessageTemplate.create({
+        tenantId: tenant.id,
+        name: data.name,
+        triggerType,
+        delayMinutes: triggerType === 'manual' ? 0 : (data.delayMinutes || 60),
+        content,
+        isActive: data.isActive ?? true,
+        sortOrder: (maxSortOrder.$extras.max || 0) + 1,
+        metaStatus: 'not_synced',
+        metaLanguage: data.metaLanguage || 'pt_BR',
+        metaCategory: data.metaCategory || 'MARKETING',
+        metaComponents: null,
+        variableMapping: null,
+      })
 
     // Auto-sync com Meta se API Oficial está ativa
     const officialCredential = await WhatsappOfficialCredential.query()
