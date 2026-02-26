@@ -311,10 +311,11 @@ export default class MessageTemplatesController {
       }
     }
 
-    return response.created({
-      success: true,
-      data: template,
-    })
+      return response.created({
+        success: true,
+        data: template,
+      })
+    }
   }
 
   /**
