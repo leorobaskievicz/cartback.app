@@ -20,7 +20,7 @@ export const createMessageTemplateValidator = vine.compile(
     headerMediaUrl: vine.string().url().optional(),
     headerExample: vine.string().trim().maxLength(60).optional(), // Exemplo para variável {{1}} no header
     bodyText: vine.string().trim().minLength(1).maxLength(1024).optional(),
-    bodyExamples: vine.array(vine.string().trim()).optional(), // Exemplos para {{1}}, {{2}}, {{3}}, {{4}}...
+    bodyExamples: vine.any().optional(), // Aceita objeto {nome: "João"} ou array ["João", "Produto X"]
     footerText: vine.string().trim().maxLength(60).optional(),
     buttons: vine
       .array(
