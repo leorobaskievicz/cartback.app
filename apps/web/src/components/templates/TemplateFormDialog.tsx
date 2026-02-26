@@ -433,7 +433,7 @@ export default function TemplateFormDialog({
                   </Typography>
                 </Alert>
               </Grid>
-            )}</Grid>
+            )}
 
           {/* MODO SIMPLES - Evolution API */}
           {mode === 'simple' && (
