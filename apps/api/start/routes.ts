@@ -26,6 +26,8 @@ const WhatsappOfficialWebhookController = () => import('#controllers/webhooks/wh
 // Admin Controllers
 const AdminController = () => import('#controllers/admin_controller')
 const AdminTenantsController = () => import('#controllers/admin_tenants_controller')
+// Debug Controller
+const WhatsappDebugController = () => import('#controllers/whatsapp_debug_controller')
 
 // Health check
 router.get('/', async () => {
@@ -124,6 +126,10 @@ router
         router.get('/qrcode', [WhatsappController, 'qrcode'])
         router.post('/disconnect', [WhatsappController, 'disconnect'])
         router.get('/health', [WhatsappController, 'health'])
+
+        // Debug endpoints
+        router.post('/debug/check-number', [WhatsappDebugController, 'checkNumber'])
+        router.post('/debug/test-send', [WhatsappDebugController, 'testSend'])
       })
       .prefix('/whatsapp')
 

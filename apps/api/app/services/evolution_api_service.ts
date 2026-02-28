@@ -42,13 +42,63 @@ class EvolutionApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        console.error('Evolution API Error:', {
+        const errorData = error.response?.data as any
+
+        // Log completo do erro para debug
+        console.error('🔴 Evolution API Error:', {
           url: error.config?.url,
           method: error.config?.method,
+          requestData: error.config?.data,
           status: error.response?.status,
-          data: error.response?.data,
+          statusText: error.response?.statusText,
+          responseData: JSON.stringify(error.response?.data, null, 2),
+          headers: error.response?.headers,
         })
-        throw error
+
+        // Extrair mensagem de erro mais detalhada possível
+        let detailedMessage = error.message
+
+        if (errorData) {
+          // Tentar múltiplas estruturas de erro possíveis
+          if (typeof errorData === 'string') {
+            detailedMessage = errorData
+          } else if (errorData.message) {
+            detailedMessage = errorData.message
+          } else if (errorData.error?.message) {
+            detailedMessage = errorData.error.message
+          } else if (errorData.error) {
+            detailedMessage = typeof errorData.error === 'string'
+              ? errorData.error
+              : JSON.stringify(errorData.error)
+          } else if (errorData.response?.message) {
+            detailedMessage = errorData.response.message
+          } else {
+            // Se nenhuma estrutura conhecida, serializar o objeto completo
+            detailedMessage = JSON.stringify(errorData)
+          }
+        }
+
+        // Adicionar contexto do status code
+        const statusContext = error.response?.status === 400
+          ? ' [BAD_REQUEST - Verifique formato do número ou conteúdo da mensagem]'
+          : error.response?.status === 401
+          ? ' [UNAUTHORIZED - Credenciais inválidas]'
+          : error.response?.status === 404
+          ? ' [NOT_FOUND - Instância não encontrada]'
+          : error.response?.status === 429
+          ? ' [RATE_LIMIT - Muitas requisições]'
+          : ''
+
+        const fullMessage = `${detailedMessage}${statusContext}`
+
+        // Criar erro aprimorado com todas as informações
+        const enhancedError = new Error(fullMessage)
+        ;(enhancedError as any).response = error.response
+        ;(enhancedError as any).status = error.response?.status
+        ;(enhancedError as any).responseData = errorData
+        ;(enhancedError as any).originalError = error
+
+        throw enhancedError
       }
     )
   }

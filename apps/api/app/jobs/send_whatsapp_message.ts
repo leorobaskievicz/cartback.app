@@ -207,15 +207,26 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
 
     console.log(`[SendMessage] ✅ Mensagem ${messageLogId} enviada com sucesso (external ID: ${result.key.id})`)
   } catch (error: any) {
-    console.error(`[SendMessage] ❌ Erro ao enviar mensagem ${messageLogId}:`, error.message)
-    console.error(`[SendMessage] Stack trace:`, error.stack)
+    // O error.message já vem processado pelo interceptor do evolution_api_service
+    // com toda a informação detalhada
+    const errorMessage = error.message || 'Erro desconhecido'
+    const errorCode = error.status?.toString() || error.response?.status?.toString() || 'UNKNOWN'
+
+    console.error(`[SendMessage] ❌ Erro ao enviar mensagem ${messageLogId}:`)
+    console.error(`  Cliente: ${cart.customerPhone}`)
+    console.error(`  Erro: ${errorMessage}`)
+    console.error(`  Code: ${errorCode}`)
+    if (error.responseData) {
+      console.error(`  Response Data:`, JSON.stringify(error.responseData, null, 2))
+    }
+    console.error(`  Stack trace:`, error.stack)
 
     messageLog.status = 'failed'
-    messageLog.errorMessage = error.message
+    messageLog.errorMessage = errorMessage
     await messageLog.save()
 
-    // Atualizar log unificado com falha
-    await unifiedLog.markAsFailed(error.message, error.code || error.response?.status?.toString())
+    // Atualizar log unificado com falha detalhada
+    await unifiedLog.markAsFailed(errorMessage, errorCode)
 
     // Atualizar métricas mesmo em caso de erro
     try {
