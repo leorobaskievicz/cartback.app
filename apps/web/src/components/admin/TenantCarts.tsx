@@ -11,8 +11,7 @@ import {
   Box,
   Typography,
 } from '@mui/material'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import dayjs from 'dayjs'
 import api from '../../services/api'
 
 interface TenantCartsProps {
@@ -98,7 +97,7 @@ export default function TenantCarts({ tenantId }: TenantCartsProps) {
                 <Chip label={cart.status} color={getStatusColor(cart.status)} size="small" />
               </TableCell>
               <TableCell>
-                {format(new Date(cart.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                {dayjs(cart.created_at).format('DD/MM/YYYY HH:mm')}
               </TableCell>
             </TableRow>
           ))}

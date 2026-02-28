@@ -12,8 +12,7 @@ import {
   Box,
   Typography,
 } from '@mui/material'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import dayjs from 'dayjs'
 import api from '../../services/api'
 
 interface TenantLogsProps {
@@ -106,7 +105,7 @@ export default function TenantLogs({ tenantId }: TenantLogsProps) {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  {dayjs(log.created_at).format('DD/MM/YYYY HH:mm')}
                 </TableCell>
               </TableRow>
             ))}
