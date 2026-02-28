@@ -195,10 +195,26 @@ class EvolutionApiService {
       ...options,
     }
 
+    // Log detalhado ANTES de enviar
+    console.log('📤 Evolution API - Sending message:', {
+      instance: instanceName,
+      original_phone: phone,
+      formatted_phone: formattedPhone,
+      message_length: message.length,
+      message_preview: message.substring(0, 50) + '...',
+      payload: JSON.stringify(payload, null, 2),
+    })
+
     const response = await this.client.post<SendMessageResponse>(
       `/message/sendText/${instanceName}`,
       payload
     )
+
+    console.log('✅ Evolution API - Success:', {
+      phone: formattedPhone,
+      messageId: response.data?.key?.id,
+    })
+
     return response.data
   }
 
