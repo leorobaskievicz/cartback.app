@@ -29,6 +29,7 @@ const AdminTenantsController = () => import('#controllers/admin_tenants_controll
 const AdminLogsController = () => import('#controllers/admin_logs_controller')
 // Debug Controller
 const WhatsappDebugController = () => import('#controllers/whatsapp_debug_controller')
+const DebugBatchController = () => import('#controllers/debug_batch_controller')
 
 // Health check
 router.get('/', async () => {
@@ -68,6 +69,9 @@ router.post('/api/auth/login', [AuthController, 'login'])
 
 // Planos (público)
 router.get('/api/plans', [PlansController, 'index'])
+
+// TEMPORÁRIO: Debug endpoint (SEM AUTH) - REMOVER APÓS DEBUG
+router.get('/api/debug/last-batch', [DebugBatchController, 'lastBatch'])
 
 // Webhooks públicos (sem auth, mas validados internamente)
 router
