@@ -153,6 +153,101 @@ export default class AdminLogsController {
   }
 
   /**
+   * GET /api/admin/logs/analyze-last-batch
+   * Analisa a última bateria de disparos (últimos 10 minutos)
+   */
+  async analyzeLastBatch({ response }: HttpContext) {
+    try {
+      // 1. Últimas falhas
+      const recentFailures = await db.rawQuery(`
+        SELECT
+          customer_phone,
+          LENGTH(customer_phone) as tamanho,
+          HEX(customer_phone) as hex_do_numero,
+          error_message,
+          created_at
+        FROM unified_message_logs
+        WHERE status = 'failed'
+          AND provider = 'evolution'
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        ORDER BY created_at DESC
+      `)
+
+      // 2. Últimos sucessos
+      const recentSuccesses = await db.rawQuery(`
+        SELECT
+          customer_phone,
+          LENGTH(customer_phone) as tamanho,
+          HEX(customer_phone) as hex_do_numero,
+          created_at
+        FROM unified_message_logs
+        WHERE status = 'sent'
+          AND provider = 'evolution'
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        ORDER BY created_at DESC
+        LIMIT 5
+      `)
+
+      // 3. Números problemáticos específicos
+      const problematic98027292 = await db.rawQuery(`
+        SELECT
+          customer_phone as numero_completo,
+          LENGTH(customer_phone) as tamanho,
+          HEX(customer_phone) as hex,
+          error_message as erro
+        FROM unified_message_logs
+        WHERE customer_phone LIKE '%98027292%'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)
+
+      const problematic92489909 = await db.rawQuery(`
+        SELECT
+          customer_phone as numero_completo,
+          LENGTH(customer_phone) as tamanho,
+          HEX(customer_phone) as hex,
+          error_message as erro
+        FROM unified_message_logs
+        WHERE customer_phone LIKE '%92489909%'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)
+
+      // 4. Carrinho original
+      const originalCarts = await db.rawQuery(`
+        SELECT
+          customer_phone as numero_no_carrinho,
+          LENGTH(customer_phone) as tamanho,
+          HEX(customer_phone) as hex,
+          status as status_carrinho
+        FROM abandoned_carts
+        WHERE (customer_phone LIKE '%98027292%' OR customer_phone LIKE '%92489909%')
+        ORDER BY created_at DESC
+        LIMIT 2
+      `)
+
+      return response.ok({
+        success: true,
+        data: {
+          recent_failures: recentFailures[0],
+          recent_successes: recentSuccesses[0],
+          problematic_numbers: {
+            phone_98027292: problematic98027292[0]?.[0] || null,
+            phone_92489909: problematic92489909[0]?.[0] || null,
+          },
+          original_carts: originalCarts[0],
+        },
+      })
+    } catch (error: any) {
+      console.error('[Admin Logs] Erro ao analisar última bateria:', error.message)
+      return response.internalServerError({
+        error: 'Failed to analyze last batch',
+        details: error.message,
+      })
+    }
+  }
+
+  /**
    * GET /api/admin/logs/analyze-failures
    * Analisa falhas comparando números que falharam vs que tiveram sucesso
    */

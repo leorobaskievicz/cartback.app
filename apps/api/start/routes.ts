@@ -227,6 +227,7 @@ router
       .group(() => {
         router.get('/', [AdminLogsController, 'index'])
         router.get('/stats', [AdminLogsController, 'stats'])
+        router.get('/analyze-last-batch', [AdminLogsController, 'analyzeLastBatch'])
         router.get('/analyze-failures', [AdminLogsController, 'analyzeFailures'])
         router.get('/:id', [AdminLogsController, 'show'])
       })
