@@ -7,8 +7,7 @@ import {
   Error,
   Visibility,
 } from '@mui/icons-material'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import dayjs from 'dayjs'
 
 interface TenantOverviewProps {
   data: {
@@ -177,9 +176,7 @@ export default function TenantOverview({ data }: TenantOverviewProps) {
                     Criado em
                   </Typography>
                   <Typography variant="body2">
-                    {format(new Date(data.tenant.created_at), 'dd/MM/yyyy HH:mm', {
-                      locale: ptBR,
-                    })}
+                    {dayjs(data.tenant.created_at).format('DD/MM/YYYY HH:mm')}
                   </Typography>
                 </Box>
               </Box>

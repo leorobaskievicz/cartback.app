@@ -25,8 +25,7 @@ import {
 } from '@mui/material'
 import { Search, Visibility, Block, CheckCircle } from '@mui/icons-material'
 import api from '../../services/api'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import dayjs from 'dayjs'
 
 interface Tenant {
   id: number
@@ -251,7 +250,7 @@ export default function TenantList() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="textSecondary">
-                        {format(new Date(tenant.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                        {dayjs(tenant.created_at).format('DD/MM/YYYY')}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
