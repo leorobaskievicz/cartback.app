@@ -42,6 +42,7 @@ import {
   AdminPanelSettings as AdminIcon,
   People as PeopleIcon,
   ArrowBack as ArrowBackIcon,
+  Article as ArticleIcon,
 } from '@mui/icons-material'
 import { LoadingButton } from '@mui/lab'
 import { useAuth } from '../../contexts/AuthContext'
@@ -66,6 +67,7 @@ const menuItems = [
 const adminMenuItems = [
   { text: 'Dashboard Admin', icon: <DashboardIcon />, path: '/admin/dashboard' },
   { text: 'Gerenciar Tenants', icon: <PeopleIcon />, path: '/admin/tenants' },
+  { text: 'Logs', icon: <ArticleIcon />, path: '/admin/logs' },
 ]
 
 export default function DashboardLayout() {
