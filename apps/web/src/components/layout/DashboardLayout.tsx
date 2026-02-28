@@ -39,6 +39,9 @@ import {
   DarkMode as DarkModeIcon,
   Key as KeyIcon,
   Upgrade as UpgradeIcon,
+  AdminPanelSettings as AdminIcon,
+  People as PeopleIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material'
 import { LoadingButton } from '@mui/lab'
 import { useAuth } from '../../contexts/AuthContext'
@@ -58,6 +61,11 @@ const menuItems = [
   { text: 'Integrações', icon: <IntegrationIcon />, path: '/dashboard/integrations' },
   { text: 'Planos', icon: <UpgradeIcon />, path: '/dashboard/plans' },
   { text: 'Configurações', icon: <SettingsIcon />, path: '/dashboard/settings' },
+]
+
+const adminMenuItems = [
+  { text: 'Dashboard Admin', icon: <DashboardIcon />, path: '/admin/dashboard' },
+  { text: 'Gerenciar Tenants', icon: <PeopleIcon />, path: '/admin/tenants' },
 ]
 
 export default function DashboardLayout() {
@@ -142,17 +150,20 @@ export default function DashboardLayout() {
     return planNames[subscription.plan] || subscription.planName || 'Trial'
   }
 
+  const isAdminRoute = location.pathname.startsWith('/admin')
+  const currentMenuItems = isAdminRoute ? adminMenuItems : menuItems
+
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Logo size="sm" variant="full" />
         <Typography variant="caption" color="text.secondary" fontWeight={500}>
-          {tenant?.name}
+          {isAdminRoute ? 'Painel Administrativo' : tenant?.name}
         </Typography>
       </Box>
       <Divider />
       <List sx={{ flex: 1, px: 2, py: 1 }}>
-        {menuItems.map((item) => (
+        {currentMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               selected={location.pathname === item.path}
@@ -169,9 +180,29 @@ export default function DashboardLayout() {
         ))}
       </List>
       <Divider />
+      {/* Botão para alternar entre admin e usuário */}
+      {user?.isAdmin && (
+        <>
+          <Box sx={{ px: 2, py: 1 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={isAdminRoute ? <ArrowBackIcon /> : <AdminIcon />}
+              onClick={() => {
+                navigate(isAdminRoute ? '/dashboard' : '/admin/dashboard')
+                setMobileOpen(false)
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              {isAdminRoute ? 'Voltar para Minha Conta' : 'Painel Admin'}
+            </Button>
+          </Box>
+          <Divider />
+        </>
+      )}
       <Box sx={{ p: 2 }}>
         <Typography variant="caption" color="text.secondary">
-          Plano: <strong>{getPlanLabel()}</strong>
+          {isAdminRoute ? 'Modo Administrador' : `Plano: ${getPlanLabel()}`}
         </Typography>
       </Box>
     </Box>
@@ -241,6 +272,29 @@ export default function DashboardLayout() {
                 <Typography variant="body2">{user?.email}</Typography>
               </MenuItem>
               <Divider />
+              {user?.isAdmin && (
+                <>
+                  <MenuItem
+                    onClick={() => {
+                      setAnchorEl(null)
+                      navigate(isAdminRoute ? '/dashboard' : '/admin/dashboard')
+                    }}
+                  >
+                    {isAdminRoute ? (
+                      <>
+                        <ArrowBackIcon sx={{ mr: 1 }} fontSize="small" />
+                        Minha Conta
+                      </>
+                    ) : (
+                      <>
+                        <AdminIcon sx={{ mr: 1 }} fontSize="small" />
+                        Painel Admin
+                      </>
+                    )}
+                  </MenuItem>
+                  <Divider />
+                </>
+              )}
               <MenuItem
                 onClick={() => {
                   setAnchorEl(null)
