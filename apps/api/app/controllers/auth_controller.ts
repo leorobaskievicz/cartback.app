@@ -112,6 +112,7 @@ export default class AuthController {
             name: user.name,
             role: user.role,
             tenantId: user.tenantId,
+            isAdmin: user.isAdmin,
           },
           tenant: {
             id: tenant.id,
@@ -163,6 +164,7 @@ export default class AuthController {
           name: user.name,
           role: user.role,
           tenantId: user.tenantId,
+          isAdmin: user.isAdmin,
         },
         tenant: {
           id: user.tenant.id,
@@ -205,6 +207,7 @@ export default class AuthController {
           name: user.name,
           role: user.role,
           tenantId: user.tenantId,
+          isAdmin: user.isAdmin,
         },
         tenant: {
           id: user.tenant.id,

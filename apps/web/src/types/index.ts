@@ -4,6 +4,7 @@ export interface User {
   email: string
   tenantId: number
   role: 'owner' | 'admin' | 'viewer'
+  isAdmin: boolean
 }
 
 export interface Tenant {
