@@ -269,21 +269,27 @@ export default class WhatsappBatchSendWebhookController {
         })
         sentCount++
       } catch (error: any) {
-        console.error(
-          `[Batch Send Webhook] ❌ [${index + 1}/${phones.length}] Falha ao enviar para ${phoneStr}:`,
-          error.message
-        )
+        // O error.message já vem processado pelo interceptor do evolution_api_service
+        // com toda a informação detalhada
+        const errorMessage = error.message || 'Erro desconhecido'
+        const errorCode = error.status?.toString() || error.response?.status?.toString() || 'UNKNOWN'
 
-        // Atualizar log unificado com falha
-        await unifiedLog.markAsFailed(
-          error.response?.data?.message ?? error.message,
-          error.response?.status?.toString()
+        console.error(
+          `[Batch Send Webhook] ❌ [${index + 1}/${phones.length}] Falha ao enviar para ${phoneStr}:`
         )
+        console.error(`  Erro: ${errorMessage}`)
+        console.error(`  Code: ${errorCode}`)
+        if (error.responseData) {
+          console.error(`  Response Data:`, JSON.stringify(error.responseData, null, 2))
+        }
+
+        // Atualizar log unificado com falha detalhada
+        await unifiedLog.markAsFailed(errorMessage, errorCode)
 
         results.push({
           phone: phoneStr,
           status: 'failed',
-          error: error.response?.data?.message ?? error.message,
+          error: errorMessage,
           attempts: maxRetries,
         })
         failedCount++
