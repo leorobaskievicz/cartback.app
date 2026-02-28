@@ -195,27 +195,30 @@ export default class DebugBatchController {
         console.log('Status:', error.status || error.response?.status)
         console.log('Message:', error.message)
         console.log('Response Data:', JSON.stringify(error.response?.data, null, 2))
-        console.log('Full Error:', JSON.stringify(error, null, 2))
+        console.log('Response Headers:', JSON.stringify(error.response?.headers, null, 2))
         console.log('========================================\n')
 
-        return response.status(error.status || 500).send({
+        return response.status(error.status || error.response?.status || 500).send({
           success: false,
           phone_tested: phone,
           instance: whatsappInstance.instanceName,
           error: {
             message: error.message,
             status: error.status || error.response?.status,
-            response_data: error.response?.data,
-            response_headers: error.response?.headers,
+            response_data: error.response?.data || error.responseData,
+            response_status: error.response?.status,
+            response_statusText: error.response?.statusText,
           },
           hint: 'Veja os logs do Railway para detalhes completos',
         })
       }
     } catch (error: any) {
-      console.error('[Debug Evolution] Erro:', error)
+      console.error('[Debug Evolution] Erro:', error.message)
+      console.error('[Debug Evolution] Stack:', error.stack)
       return response.internalServerError({
         error: 'Test failed',
         details: error.message,
+        stack: error.stack,
       })
     }
   }
