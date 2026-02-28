@@ -67,15 +67,17 @@ export default class AdminController {
         .orderBy('date', 'asc')
 
       // Mensagens por dia (últimos 30 dias)
-      const messagesByDay = await db
-        .from('unified_message_logs')
-        .select(db.raw('DATE(created_at) as date'))
-        .count('* as total')
-        .sum(db.raw('CASE WHEN status = "sent" THEN 1 ELSE 0 END as sent'))
-        .sum(db.raw('CASE WHEN status = "failed" THEN 1 ELSE 0 END as failed'))
-        .where('created_at', '>=', thirtyDaysAgo!)
-        .groupByRaw('DATE(created_at)')
-        .orderBy('date', 'asc')
+      const messagesByDay = await db.rawQuery(`
+        SELECT
+          DATE(created_at) as date,
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+        FROM unified_message_logs
+        WHERE created_at >= ?
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `, [thirtyDaysAgo])
 
       // Distribuição por plano
       const planDistribution = await db
@@ -139,7 +141,7 @@ export default class AdminController {
         },
         charts: {
           tenantGrowth,
-          messagesByDay,
+          messagesByDay: messagesByDay.rows || messagesByDay[0] || [],
           planDistribution,
         },
         tables: {

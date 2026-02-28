@@ -146,16 +146,17 @@ export default class AdminTenantsController {
 
       // Mensagens por dia (últimos 30 dias)
       const thirtyDaysAgo = DateTime.now().minus({ days: 30 }).toSQL()
-      const messagesByDay = await db
-        .from('unified_message_logs')
-        .select(db.raw('DATE(created_at) as date'))
-        .count('* as total')
-        .sum(db.raw('CASE WHEN status = "sent" THEN 1 ELSE 0 END as sent'))
-        .sum(db.raw('CASE WHEN status = "failed" THEN 1 ELSE 0 END as failed'))
-        .where('tenant_id', tenant.id)
-        .where('created_at', '>=', thirtyDaysAgo!)
-        .groupByRaw('DATE(created_at)')
-        .orderBy('date', 'asc')
+      const messagesByDay = await db.rawQuery(`
+        SELECT
+          DATE(created_at) as date,
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+        FROM unified_message_logs
+        WHERE tenant_id = ? AND created_at >= ?
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `, [tenant.id, thirtyDaysAgo])
 
       return response.ok({
         tenant: tenant.serialize(),
@@ -180,7 +181,7 @@ export default class AdminTenantsController {
           stores: integrations.map((i) => i.serialize()),
         },
         charts: {
-          messagesByDay,
+          messagesByDay: messagesByDay.rows || messagesByDay[0] || [],
         },
       })
     } catch (error: any) {
