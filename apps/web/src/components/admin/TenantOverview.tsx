@@ -2,7 +2,7 @@ import { Grid, Card, CardContent, Typography, Box, Chip } from '@mui/material'
 import {
   Message,
   ShoppingCart,
-  Template,
+  Description,
   CheckCircle,
   Error,
   Visibility,
@@ -128,7 +128,7 @@ export default function TenantOverview({ data }: TenantOverviewProps) {
             title="Templates"
             value={data.stats.templates}
             subtitle="configurados"
-            icon={<Template />}
+            icon={<Description />}
             color="info.main"
           />
         </Grid>
