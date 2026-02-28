@@ -116,7 +116,7 @@ export default class AdminTenantsController {
               db.raw('SUM(CASE WHEN status = "sent" THEN 1 ELSE 0 END) as sent'),
               db.raw('SUM(CASE WHEN status = "failed" THEN 1 ELSE 0 END) as failed'),
               db.raw('SUM(CASE WHEN status = "delivered" THEN 1 ELSE 0 END) as delivered'),
-              db.raw('SUM(CASE WHEN status = "read" THEN 1 ELSE 0 END) as read'),
+              db.raw('SUM(CASE WHEN status = "read" THEN 1 ELSE 0 END) as `read`'),
             ])
             .first(),
 

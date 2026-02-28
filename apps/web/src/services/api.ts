@@ -324,3 +324,40 @@ export const whatsappOfficialApi = {
   getLogStats: () =>
     api.get<ApiResponse<WhatsAppOfficialLogStats>>('/whatsapp-official/logs/stats'),
 }
+
+// Admin API
+export const adminApi = {
+  // Dashboard
+  getDashboard: () => api.get<ApiResponse<any>>('/admin/dashboard'),
+
+  // Tenants
+  getTenants: (params?: { page?: number; per_page?: number; search?: string; status?: string; plan?: string }) =>
+    api.get<ApiResponse<any>>('/admin/tenants', { params }),
+
+  getTenant: (id: number) => api.get<ApiResponse<any>>(`/admin/tenants/${id}`),
+
+  toggleTenantStatus: (id: number) =>
+    api.patch<ApiResponse<{ message: string }>>(`/admin/tenants/${id}/toggle-status`),
+
+  getTenantLogs: (id: number, params?: { page?: number; per_page?: number }) =>
+    api.get<ApiResponse<any>>(`/admin/tenants/${id}/logs`, { params }),
+
+  getTenantTemplates: (id: number) => api.get<ApiResponse<any>>(`/admin/tenants/${id}/templates`),
+
+  getTenantCarts: (id: number, params?: { page?: number; per_page?: number }) =>
+    api.get<ApiResponse<any>>(`/admin/tenants/${id}/carts`, { params }),
+
+  // Logs
+  getLogs: (params?: {
+    page?: number
+    per_page?: number
+    tenant_id?: number
+    status?: string
+    provider?: string
+    search?: string
+  }) => api.get<ApiResponse<any>>('/admin/logs', { params }),
+
+  getLogStats: () => api.get<ApiResponse<any>>('/admin/logs/stats'),
+
+  getLog: (id: number) => api.get<ApiResponse<any>>(`/admin/logs/${id}`),
+}

@@ -15,6 +15,7 @@ import LandingPage from './pages/landingpage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import TenantList from './pages/admin/TenantList'
 import TenantDetails from './pages/admin/TenantDetails'
+import AdminLogs from './pages/admin/AdminLogs'
 
 interface PrivateRouteProps {
   children: React.ReactNode
@@ -145,6 +146,7 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="tenants" element={<TenantList />} />
         <Route path="tenants/:id" element={<TenantDetails />} />
+        <Route path="logs" element={<AdminLogs />} />
       </Route>
 
       {/* Catch all */}

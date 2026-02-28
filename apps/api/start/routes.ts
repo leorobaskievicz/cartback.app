@@ -26,6 +26,7 @@ const WhatsappOfficialWebhookController = () => import('#controllers/webhooks/wh
 // Admin Controllers
 const AdminController = () => import('#controllers/admin_controller')
 const AdminTenantsController = () => import('#controllers/admin_tenants_controller')
+const AdminLogsController = () => import('#controllers/admin_logs_controller')
 // Debug Controller
 const WhatsappDebugController = () => import('#controllers/whatsapp_debug_controller')
 
@@ -219,6 +220,15 @@ router
         router.patch('/:id/toggle-status', [AdminTenantsController, 'toggleStatus'])
       })
       .prefix('/tenants')
+
+    // Logs unificados
+    router
+      .group(() => {
+        router.get('/', [AdminLogsController, 'index'])
+        router.get('/stats', [AdminLogsController, 'stats'])
+        router.get('/:id', [AdminLogsController, 'show'])
+      })
+      .prefix('/logs')
   })
   .prefix('/api/admin')
   .use([middleware.auth(), middleware.admin()])
