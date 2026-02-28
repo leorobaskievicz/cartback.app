@@ -33,7 +33,7 @@ export default class AdminTenantsController {
           'tenants.updated_at'
         )
         .preload('subscription', (query) => {
-          query.select('tenant_id', 'plan_type', 'status', 'messages_limit', 'messages_used')
+          query.select('tenant_id', 'plan', 'status', 'messages_limit', 'messages_used')
         })
 
       // Filtro de busca (nome ou email)
@@ -53,7 +53,7 @@ export default class AdminTenantsController {
       // Filtro de plano
       if (plan) {
         query.whereHas('subscription', (subQuery) => {
-          subQuery.where('plan_type', plan)
+          subQuery.where('plan', plan)
         })
       }
 

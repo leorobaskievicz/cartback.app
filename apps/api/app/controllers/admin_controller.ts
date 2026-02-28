@@ -82,9 +82,9 @@ export default class AdminController {
       // Distribuição por plano
       const planDistribution = await db
         .from('subscriptions')
-        .select('plan_type')
+        .select('plan')
         .count('* as count')
-        .groupBy('plan_type')
+        .groupBy('plan')
 
       // Top 10 tenants mais ativos (por mensagens)
       const topTenants = await db
