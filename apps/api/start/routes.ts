@@ -23,6 +23,9 @@ const WhatsappOfficialCredentialsController = () => import('#controllers/whatsap
 const WhatsappOfficialTemplatesController = () => import('#controllers/whatsapp_official_templates_controller')
 const WhatsappOfficialLogsController = () => import('#controllers/whatsapp_official_logs_controller')
 const WhatsappOfficialWebhookController = () => import('#controllers/webhooks/whatsapp_official_webhook_controller')
+// Admin Controllers
+const AdminController = () => import('#controllers/admin_controller')
+const AdminTenantsController = () => import('#controllers/admin_tenants_controller')
 
 // Health check
 router.get('/', async () => {
@@ -191,3 +194,25 @@ router
   })
   .prefix('/api')
   .use([middleware.auth(), middleware.tenant()])
+
+// Rotas de administração (requer autenticação + is_admin)
+router
+  .group(() => {
+    // Dashboard geral
+    router.get('/dashboard', [AdminController, 'dashboard'])
+    router.get('/stats/overview', [AdminController, 'statsOverview'])
+
+    // Gerenciamento de tenants
+    router
+      .group(() => {
+        router.get('/', [AdminTenantsController, 'index'])
+        router.get('/:id', [AdminTenantsController, 'show'])
+        router.get('/:id/logs', [AdminTenantsController, 'logs'])
+        router.get('/:id/templates', [AdminTenantsController, 'templates'])
+        router.get('/:id/carts', [AdminTenantsController, 'carts'])
+        router.patch('/:id/toggle-status', [AdminTenantsController, 'toggleStatus'])
+      })
+      .prefix('/tenants')
+  })
+  .prefix('/api/admin')
+  .use([middleware.auth(), middleware.admin()])

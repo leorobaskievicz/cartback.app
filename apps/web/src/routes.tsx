@@ -12,6 +12,9 @@ import Carts from './pages/Carts'
 import Settings from './pages/Settings'
 import Plans from './pages/Plans'
 import LandingPage from './pages/landingpage'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import TenantList from './pages/admin/TenantList'
+import TenantDetails from './pages/admin/TenantDetails'
 
 interface PrivateRouteProps {
   children: React.ReactNode
@@ -43,6 +46,36 @@ function PrivateRoute({ children }: PrivateRouteProps) {
   }
 
   console.log('✅ PrivateRoute: User authenticated, rendering children')
+  return <>{children}</>
+}
+
+function AdminRoute({ children }: PrivateRouteProps) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Verificar se é admin
+  if (!(user as any).isAdmin) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return <>{children}</>
 }
 
@@ -97,6 +130,21 @@ export default function AppRoutes() {
         <Route path="integrations" element={<Integrations />} />
         <Route path="plans" element={<Plans />} />
         <Route path="settings" element={<Settings />} />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <DashboardLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="tenants" element={<TenantList />} />
+        <Route path="tenants/:id" element={<TenantDetails />} />
       </Route>
 
       {/* Catch all */}
