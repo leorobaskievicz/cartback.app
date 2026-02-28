@@ -4,6 +4,7 @@ import MessageTemplate from '#models/message_template'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import AbandonedCart from '#models/abandoned_cart'
 import Subscription from '#models/subscription'
+import UnifiedMessageLog from '#models/unified_message_log'
 import whatsappOfficialService from '#services/whatsapp_official_service'
 import { DateTime } from 'luxon'
 
@@ -144,6 +145,30 @@ export async function sendWhatsappOfficialMessage(
     ]
   }
 
+  // Criar log unificado ANTES de enviar
+  const unifiedLog = await UnifiedMessageLog.logOfficialSend({
+    tenantId: cart.tenantId,
+    customerPhone: cart.customerPhone,
+    customerName: cart.customerName,
+    abandonedCartId: cart.id,
+    messageTemplateId: template.id,
+    templateName: template.name,
+    officialCredentialId: credential.id,
+    messageType: sendAsText ? 'text' : 'template',
+    templateVariables: {
+      nome: availableValues.nome,
+      produtos: availableValues.produtos,
+      link: availableValues.link,
+      total: availableValues.total,
+    },
+    metadata: {
+      officialLogId: officialLog.id,
+      source: 'abandoned_cart_recovery',
+      isApproved: !sendAsText,
+      metaTemplateId: template.metaTemplateId,
+    },
+  })
+
   try {
     const credentials = {
       phoneNumberId: credential.phoneNumberId,
@@ -234,6 +259,9 @@ export async function sendWhatsappOfficialMessage(
       officialLog.bodyParams = JSON.stringify(bodyParams)
       officialLog.sentAt = DateTime.now()
       await officialLog.save()
+
+      // Atualizar log unificado
+      await unifiedLog.markAsSent(result?.messages?.[0]?.id)
     } else {
       // Para mensagens de texto, salvar allParams
       officialLog.status = 'sent'
@@ -241,6 +269,9 @@ export async function sendWhatsappOfficialMessage(
       officialLog.bodyParams = JSON.stringify(allParams)
       officialLog.sentAt = DateTime.now()
       await officialLog.save()
+
+      // Atualizar log unificado
+      await unifiedLog.markAsSent(result?.messages?.[0]?.id)
     }
 
     // 8. Incrementar contador de mensagens
@@ -256,6 +287,9 @@ export async function sendWhatsappOfficialMessage(
     officialLog.status = 'failed'
     officialLog.errorMessage = error.message
     await officialLog.save()
+
+    // Atualizar log unificado com falha
+    await unifiedLog.markAsFailed(error.message, error.response?.data?.error?.code?.toString())
 
     throw error
   }

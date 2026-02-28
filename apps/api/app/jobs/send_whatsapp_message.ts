@@ -4,6 +4,7 @@ import MessageTemplate from '#models/message_template'
 import AbandonedCart from '#models/abandoned_cart'
 import WhatsappInstance from '#models/whatsapp_instance'
 import Subscription from '#models/subscription'
+import UnifiedMessageLog from '#models/unified_message_log'
 import evolutionApi from '#services/evolution_api_service'
 import queueService from '#jobs/queue_service'
 import RateLimiterService from '#services/rate_limiter_service'
@@ -154,6 +155,28 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
     return
   }
 
+  // Criar log unificado ANTES de enviar
+  const unifiedLog = await UnifiedMessageLog.logEvolutionSend({
+    tenantId: cart.tenantId,
+    customerPhone: cart.customerPhone,
+    customerName: cart.customerName,
+    abandonedCartId: cart.id,
+    messageTemplateId: template.id,
+    templateName: template.name,
+    whatsappInstanceId: whatsapp.id,
+    messageContent: finalMessage,
+    templateVariables: {
+      nome: cart.customerName || 'Cliente',
+      produtos: formatProducts(cart.items || []),
+      link: cart.cartUrl || '[Link não disponível]',
+      total: formatCurrency(cart.totalValue || 0),
+    },
+    metadata: {
+      messageLogId: messageLog.id,
+      source: 'abandoned_cart_recovery',
+    },
+  })
+
   try {
     console.log(`[SendMessage] Enviando mensagem para ${cart.customerPhone}...`)
 
@@ -169,6 +192,9 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
     messageLog.externalMessageId = result.key.id
     messageLog.sentAt = DateTime.now()
     await messageLog.save()
+
+    // Atualizar log unificado com sucesso
+    await unifiedLog.markAsSent(result.key.id)
 
     // Incrementar contador de mensagens usadas
     if (subscription) {
@@ -187,6 +213,9 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
     messageLog.status = 'failed'
     messageLog.errorMessage = error.message
     await messageLog.save()
+
+    // Atualizar log unificado com falha
+    await unifiedLog.markAsFailed(error.message, error.code || error.response?.status?.toString())
 
     // Atualizar métricas mesmo em caso de erro
     try {

@@ -3,6 +3,7 @@ import Tenant from '#models/tenant'
 import StoreIntegration from '#models/store_integration'
 import WhatsappInstance from '#models/whatsapp_instance'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
+import UnifiedMessageLog from '#models/unified_message_log'
 import customWebhookService from '#services/custom_webhook_service'
 import evolutionApiService from '#services/evolution_api_service'
 import whatsappOfficialService from '#services/whatsapp_official_service'
@@ -196,9 +197,37 @@ export default class WhatsappBatchSendWebhookController {
         `[Batch Send Webhook] [${index + 1}/${phones.length}] Enviando para ${phoneStr}...`
       )
 
+      // Criar log unificado para este número
+      const unifiedLog = whatsappInstance
+        ? await UnifiedMessageLog.logEvolutionSend({
+            tenantId: tenant.id,
+            customerPhone: phoneStr,
+            whatsappInstanceId: whatsappInstance.id,
+            messageContent: message.trim(),
+            metadata: {
+              source: 'webhook_batch',
+              integration: 'custom_webhook',
+              batchSize: phones.length,
+              batchIndex: index,
+            },
+          })
+        : await UnifiedMessageLog.logOfficialSend({
+            tenantId: tenant.id,
+            customerPhone: phoneStr,
+            officialCredentialId: officialCredential!.id,
+            messageType: 'text',
+            messageContent: message.trim(),
+            metadata: {
+              source: 'webhook_batch',
+              integration: 'custom_webhook',
+              batchSize: phones.length,
+              batchIndex: index,
+            },
+          })
+
       try {
         // Tentar enviar com retry
-        await retryWithBackoff(
+        const result = await retryWithBackoff(
           async () => {
             if (whatsappInstance) {
               // Evolution API
@@ -226,12 +255,16 @@ export default class WhatsappBatchSendWebhookController {
           1000
         )
 
+        // Atualizar log unificado com sucesso
+        const messageId = whatsappInstance ? result?.key?.id : result?.messages?.[0]?.id
+        await unifiedLog.markAsSent(messageId)
+
         console.log(`[Batch Send Webhook] ✅ [${index + 1}/${phones.length}] Enviado para ${phoneStr}`)
 
         results.push({
           phone: phoneStr,
           status: 'sent',
-          messageId: 'success',
+          messageId: messageId ?? 'success',
           attempts: 1,
         })
         sentCount++
@@ -239,6 +272,12 @@ export default class WhatsappBatchSendWebhookController {
         console.error(
           `[Batch Send Webhook] ❌ [${index + 1}/${phones.length}] Falha ao enviar para ${phoneStr}:`,
           error.message
+        )
+
+        // Atualizar log unificado com falha
+        await unifiedLog.markAsFailed(
+          error.response?.data?.message ?? error.message,
+          error.response?.status?.toString()
         )
 
         results.push({

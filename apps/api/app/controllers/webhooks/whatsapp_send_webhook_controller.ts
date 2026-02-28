@@ -3,6 +3,7 @@ import Tenant from '#models/tenant'
 import StoreIntegration from '#models/store_integration'
 import WhatsappInstance from '#models/whatsapp_instance'
 import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
+import UnifiedMessageLog from '#models/unified_message_log'
 import customWebhookService from '#services/custom_webhook_service'
 import evolutionApiService from '#services/evolution_api_service'
 import whatsappOfficialService from '#services/whatsapp_official_service'
@@ -109,6 +110,30 @@ export default class WhatsappSendWebhookController {
       })
     }
 
+    // Criar log unificado
+    const unifiedLog = whatsappInstance
+      ? await UnifiedMessageLog.logEvolutionSend({
+          tenantId: tenant.id,
+          customerPhone: phone.trim(),
+          whatsappInstanceId: whatsappInstance.id,
+          messageContent: message.trim(),
+          metadata: {
+            source: 'webhook',
+            integration: 'custom_webhook',
+          },
+        })
+      : await UnifiedMessageLog.logOfficialSend({
+          tenantId: tenant.id,
+          customerPhone: phone.trim(),
+          officialCredentialId: officialCredential!.id,
+          messageType: 'text',
+          messageContent: message.trim(),
+          metadata: {
+            source: 'webhook',
+            integration: 'custom_webhook',
+          },
+        })
+
     try {
       if (whatsappInstance) {
         console.log(
@@ -119,6 +144,10 @@ export default class WhatsappSendWebhookController {
           phone.trim(),
           message.trim()
         )
+
+        // Atualizar log unificado
+        await unifiedLog.markAsSent(result?.key?.id)
+
         console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada com sucesso para ${phone}`)
         return response.ok({
           success: true,
@@ -140,6 +169,10 @@ export default class WhatsappSendWebhookController {
           phone.trim(),
           message.trim()
         )
+
+        // Atualizar log unificado
+        await unifiedLog.markAsSent(result?.messages?.[0]?.id)
+
         console.log(`[WhatsApp Send Webhook] ✅ Mensagem enviada via API Oficial para ${phone}`)
         return response.ok({
           success: true,
@@ -152,6 +185,9 @@ export default class WhatsappSendWebhookController {
       }
     } catch (error: any) {
       console.error(`[WhatsApp Send Webhook] Erro ao enviar mensagem:`, error.message)
+
+      // Atualizar log unificado com falha
+      await unifiedLog.markAsFailed(error.message, error.response?.status?.toString())
 
       return response.internalServerError({
         error: 'Failed to send WhatsApp message',
