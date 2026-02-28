@@ -129,6 +129,7 @@ router
         router.get('/health', [WhatsappController, 'health'])
 
         // Debug endpoints
+        router.post('/debug/format-phone', [WhatsappDebugController, 'formatPhone'])
         router.post('/debug/check-number', [WhatsappDebugController, 'checkNumber'])
         router.post('/debug/test-send', [WhatsappDebugController, 'testSend'])
       })

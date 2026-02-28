@@ -62,6 +62,36 @@ export default class WhatsappDebugController {
   }
 
   /**
+   * POST /api/whatsapp/debug/format-phone
+   * Testa a formatação de um número sem enviar
+   */
+  async formatPhone({ request, response }: HttpContext) {
+    const { phone } = request.only(['phone'])
+
+    if (!phone) {
+      return response.badRequest({ error: 'Phone number is required' })
+    }
+
+    // Simular a formatação que o código faz
+    const cleaned = phone.replace(/\D/g, '')
+    const formatted = cleaned.startsWith('55') ? cleaned : '55' + cleaned
+
+    return response.ok({
+      original: phone,
+      original_length: phone.length,
+      original_hex: Buffer.from(phone).toString('hex'),
+      cleaned: cleaned,
+      cleaned_length: cleaned.length,
+      formatted: formatted,
+      formatted_length: formatted.length,
+      has_spaces: phone.includes(' '),
+      has_parentheses: phone.includes('(') || phone.includes(')'),
+      has_dash: phone.includes('-'),
+      has_plus: phone.includes('+'),
+    })
+  }
+
+  /**
    * POST /api/whatsapp/debug/test-send
    * Testa envio de mensagem para um número específico
    */
