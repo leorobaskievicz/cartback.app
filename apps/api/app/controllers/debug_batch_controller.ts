@@ -1,5 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
+import evolutionApi from '#services/evolution_api_service'
+import WhatsappInstance from '#models/whatsapp_instance'
 
 /**
  * Controller TEMPORÁRIO para debug (SEM AUTENTICAÇÃO)
@@ -130,6 +132,90 @@ export default class DebugBatchController {
         error: 'Failed to analyze',
         details: error.message,
         stack: error.stack,
+      })
+    }
+  }
+
+  /**
+   * POST /api/debug/test-evolution
+   * Testa envio direto para Evolution API e captura resposta completa
+   */
+  async testEvolution({ request, response }: HttpContext) {
+    try {
+      const { phone, tenantId } = request.only(['phone', 'tenantId'])
+
+      if (!phone) {
+        return response.badRequest({ error: 'Phone required' })
+      }
+
+      // Buscar instância WhatsApp conectada do tenant
+      const whatsappInstance = await WhatsappInstance.query()
+        .where('tenant_id', tenantId || 4) // Default tenant 4
+        .where('status', 'connected')
+        .first()
+
+      if (!whatsappInstance) {
+        return response.badRequest({
+          error: 'No connected WhatsApp instance',
+          hint: 'Verifique se há uma instância conectada para o tenant',
+        })
+      }
+
+      const testMessage = `🧪 TESTE DE DEBUG - ${new Date().toISOString()}\n\nEste é um teste técnico para diagnosticar problemas de envio.`
+
+      console.log('\n========================================')
+      console.log('🧪 TESTE EVOLUTION API - DEBUG')
+      console.log('========================================')
+      console.log('Instância:', whatsappInstance.instanceName)
+      console.log('Telefone original:', phone)
+      console.log('Mensagem:', testMessage)
+      console.log('========================================\n')
+
+      try {
+        // Tentar enviar via Evolution API
+        const result = await evolutionApi.sendText(
+          whatsappInstance.instanceName,
+          phone,
+          testMessage
+        )
+
+        console.log('\n✅ SUCESSO NA RESPOSTA DO EVOLUTION:')
+        console.log(JSON.stringify(result, null, 2))
+        console.log('========================================\n')
+
+        return response.ok({
+          success: true,
+          phone_tested: phone,
+          instance: whatsappInstance.instanceName,
+          result: result,
+          message: 'Mensagem enviada com sucesso!',
+        })
+      } catch (error: any) {
+        console.log('\n❌ ERRO NA RESPOSTA DO EVOLUTION:')
+        console.log('Status:', error.status || error.response?.status)
+        console.log('Message:', error.message)
+        console.log('Response Data:', JSON.stringify(error.response?.data, null, 2))
+        console.log('Full Error:', JSON.stringify(error, null, 2))
+        console.log('========================================\n')
+
+        return response.status(error.status || 500).send({
+          success: false,
+          phone_tested: phone,
+          instance: whatsappInstance.instanceName,
+          error: {
+            message: error.message,
+            status: error.status || error.response?.status,
+            response_data: error.response?.data,
+            response_headers: error.response?.headers,
+          },
+          hint: 'Veja os logs do Railway para detalhes completos',
+        })
+      }
+    } catch (error: any) {
+      console.error('[Debug Evolution] Erro:', error)
+      return response.internalServerError({
+        error: 'Test failed',
+        details: error.message,
       })
     }
   }
