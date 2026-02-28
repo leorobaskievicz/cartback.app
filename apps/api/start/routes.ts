@@ -70,8 +70,9 @@ router.post('/api/auth/login', [AuthController, 'login'])
 // Planos (público)
 router.get('/api/plans', [PlansController, 'index'])
 
-// TEMPORÁRIO: Debug endpoint (SEM AUTH) - REMOVER APÓS DEBUG
+// TEMPORÁRIO: Debug endpoints (SEM AUTH) - REMOVER APÓS DEBUG
 router.get('/api/debug/last-batch', [DebugBatchController, 'lastBatch'])
+router.post('/api/debug/test-evolution', [DebugBatchController, 'testEvolution'])
 
 // Webhooks públicos (sem auth, mas validados internamente)
 router
