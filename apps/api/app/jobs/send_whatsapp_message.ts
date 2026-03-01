@@ -6,6 +6,7 @@ import WhatsappInstance from '#models/whatsapp_instance'
 import Subscription from '#models/subscription'
 import UnifiedMessageLog from '#models/unified_message_log'
 import evolutionApi from '#services/evolution_api_service'
+import evolutionWorkaround from '#services/evolution_workaround_service'
 import queueService from '#jobs/queue_service'
 import RateLimiterService from '#services/rate_limiter_service'
 import WhatsappHealthService from '#services/whatsapp_health_service'
@@ -183,8 +184,13 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
     // 3. Registrar que estamos enviando (para rate limiting em tempo real)
     await rateLimiter.recordMessageSend(cart.tenantId, whatsappInstanceId)
 
-    // Enviar via Evolution API
-    const result = await evolutionApi.sendText(whatsapp.instanceName, cart.customerPhone, finalMessage)
+    // Enviar via Evolution API com retry automático (workaround para bug SessionError)
+    const result = await evolutionWorkaround.sendTextWithRetry(
+      whatsapp.instanceName,
+      cart.customerPhone,
+      finalMessage,
+      3 // 3 tentativas
+    )
 
     // Atualizar log com sucesso
     messageLog.content = finalMessage
@@ -209,8 +215,14 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
   } catch (error: any) {
     // O error.message já vem processado pelo interceptor do evolution_api_service
     // com toda a informação detalhada
-    const errorMessage = error.message || 'Erro desconhecido'
+    let errorMessage = error.message || 'Erro desconhecido'
     const errorCode = error.status?.toString() || error.response?.status?.toString() || 'UNKNOWN'
+
+    // Verificar se é o bug conhecido SessionError
+    if (evolutionWorkaround.isSessionErrorBug(error)) {
+      errorMessage = evolutionWorkaround.getFriendlyErrorMessage(error, cart.customerPhone)
+      console.error(`[SendMessage] ⚠️ BUG CONHECIDO DO EVOLUTION API DETECTADO (SessionError)`)
+    }
 
     console.error(`[SendMessage] ❌ Erro ao enviar mensagem ${messageLogId}:`)
     console.error(`  Cliente: ${cart.customerPhone}`)

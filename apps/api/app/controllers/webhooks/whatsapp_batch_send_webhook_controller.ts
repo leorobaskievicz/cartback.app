@@ -6,6 +6,7 @@ import WhatsappOfficialCredential from '#models/whatsapp_official_credential'
 import UnifiedMessageLog from '#models/unified_message_log'
 import customWebhookService from '#services/custom_webhook_service'
 import evolutionApiService from '#services/evolution_api_service'
+import evolutionWorkaround from '#services/evolution_workaround_service'
 import whatsappOfficialService from '#services/whatsapp_official_service'
 
 /**
@@ -226,20 +227,22 @@ export default class WhatsappBatchSendWebhookController {
           })
 
       try {
-        // Tentar enviar com retry
-        const result = await retryWithBackoff(
-          async () => {
-            if (whatsappInstance) {
-              // Evolution API
-              const result = await evolutionApiService.sendText(
-                whatsappInstance.instanceName,
-                phoneStr,
-                message.trim()
-              )
-              return result
-            } else {
-              // API Oficial
-              const result = await whatsappOfficialService.sendTextMessage(
+        // Enviar com retry automático (workaround para bug SessionError do Evolution)
+        let result: any
+
+        if (whatsappInstance) {
+          // Evolution API com retry inteligente
+          result = await evolutionWorkaround.sendTextWithRetry(
+            whatsappInstance.instanceName,
+            phoneStr,
+            message.trim(),
+            maxRetries
+          )
+        } else {
+          // API Oficial com retry simples
+          result = await retryWithBackoff(
+            async () => {
+              return await whatsappOfficialService.sendTextMessage(
                 {
                   phoneNumberId: officialCredential!.phoneNumberId,
                   wabaId: officialCredential!.wabaId,
@@ -248,12 +251,11 @@ export default class WhatsappBatchSendWebhookController {
                 phoneStr,
                 message.trim()
               )
-              return result
-            }
-          },
-          maxRetries,
-          1000
-        )
+            },
+            maxRetries,
+            1000
+          )
+        }
 
         // Atualizar log unificado com sucesso
         const messageId = whatsappInstance ? result?.key?.id : result?.messages?.[0]?.id
@@ -271,8 +273,16 @@ export default class WhatsappBatchSendWebhookController {
       } catch (error: any) {
         // O error.message já vem processado pelo interceptor do evolution_api_service
         // com toda a informação detalhada
-        const errorMessage = error.message || 'Erro desconhecido'
+        let errorMessage = error.message || 'Erro desconhecido'
         const errorCode = error.status?.toString() || error.response?.status?.toString() || 'UNKNOWN'
+
+        // Verificar se é o bug conhecido SessionError (apenas para Evolution API)
+        if (whatsappInstance && evolutionWorkaround.isSessionErrorBug(error)) {
+          errorMessage = evolutionWorkaround.getFriendlyErrorMessage(error, phoneStr)
+          console.error(
+            `[Batch Send Webhook] ⚠️ [${index + 1}/${phones.length}] BUG CONHECIDO DO EVOLUTION API DETECTADO (SessionError) para ${phoneStr}`
+          )
+        }
 
         console.error(
           `[Batch Send Webhook] ❌ [${index + 1}/${phones.length}] Falha ao enviar para ${phoneStr}:`
