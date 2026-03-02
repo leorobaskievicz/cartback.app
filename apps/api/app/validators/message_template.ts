@@ -36,7 +36,15 @@ export const createMessageTemplateValidator = vine.compile(
           url: vine
             .string()
             .trim()
-            .regex(/^https?:\/\/.+/)
+            .minLength(1)
+            .optional(),
+          // Exemplo da URL dinâmica (obrigatório quando url tem variável)
+          // Ex: se url = "https://loja.com/cart/{{link}}",
+          //     urlExample = "https://loja.com/cart/abc123xyz"
+          urlExample: vine
+            .string()
+            .trim()
+            .url()
             .optional(),
           phoneNumber: vine.string().optional(),
         })

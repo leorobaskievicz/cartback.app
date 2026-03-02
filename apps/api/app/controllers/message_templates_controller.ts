@@ -244,9 +244,14 @@ export default class MessageTemplatesController {
               // Se a URL tem variável dinâmica, adicionar example
               // O example deve ser uma URL completa válida
               if (buttonUrl.includes('{{1}}')) {
-                // Gerar example substituindo {{1}} por um valor de exemplo
-                const exampleUrl = buttonUrl.replace(/\{\{1\}\}/g, 'abc123xyz')
-                button.example = [exampleUrl]
+                if (btn.urlExample) {
+                  // Usar exemplo fornecido pelo usuário
+                  button.example = [btn.urlExample]
+                } else {
+                  // Fallback: gerar example automaticamente
+                  const exampleUrl = buttonUrl.replace(/\{\{1\}\}/g, 'abc123xyz')
+                  button.example = [exampleUrl]
+                }
               }
             } else if (btn.type === 'PHONE_NUMBER' && btn.phoneNumber) {
               button.phone_number = btn.phoneNumber
