@@ -224,7 +224,26 @@ export default class MessageTemplatesController {
           buttons: data.buttons.map((btn: any) => {
             const button: any = { type: btn.type, text: btn.text }
             if (btn.type === 'URL' && btn.url) {
-              button.url = btn.url
+              let buttonUrl = btn.url
+
+              // Converter variáveis nomeadas para numeradas na URL do botão
+              // Meta API espera {{1}} para variáveis em botões URL
+              if (buttonUrl.includes('{{link}}')) {
+                buttonUrl = buttonUrl.replace(/\{\{link\}\}/g, '{{1}}')
+              } else if (buttonUrl.includes('{{nome}}')) {
+                buttonUrl = buttonUrl.replace(/\{\{nome\}\}/g, '{{1}}')
+              } else if (buttonUrl.includes('{{total}}')) {
+                buttonUrl = buttonUrl.replace(/\{\{total\}\}/g, '{{1}}')
+              } else if (buttonUrl.includes('{{produtos}}')) {
+                buttonUrl = buttonUrl.replace(/\{\{produtos\}\}/g, '{{1}}')
+              }
+
+              button.url = buttonUrl
+
+              // Se a URL tem variável dinâmica, adicionar example
+              if (buttonUrl.includes('{{1}}')) {
+                button.example = ['https://loja.com/cart/abc123']
+              }
             } else if (btn.type === 'PHONE_NUMBER' && btn.phoneNumber) {
               button.phone_number = btn.phoneNumber
             }
