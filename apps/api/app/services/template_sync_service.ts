@@ -150,6 +150,15 @@ export class TemplateSyncService {
 
     const { name, components } = this.buildMetaComponentsFromTemplate(template)
 
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📤 ENVIANDO PARA META API:')
+    console.log(`Template Name: ${name}`)
+    console.log(`Category: ${template.metaCategory}`)
+    console.log(`Language: ${template.metaLanguage}`)
+    console.log('Components:')
+    console.log(JSON.stringify(components, null, 2))
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
     try {
       const metaTemplate = await whatsappOfficialService.createTemplate(
         {
