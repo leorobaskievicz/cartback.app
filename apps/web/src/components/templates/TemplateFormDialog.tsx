@@ -47,6 +47,7 @@ interface TemplateButton {
   type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
   text: string
   url?: string
+  urlExample?: string  // Exemplo da URL dinâmica (obrigatório quando url tem variável)
   phoneNumber?: string
 }
 
@@ -750,65 +751,94 @@ export default function TemplateFormDialog({
                       </Button>
                     </Stack>
 
-                    {formData.buttons?.map((button, index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          mb: 2,
-                          p: 2,
-                          bgcolor: 'action.hover',
-                          borderRadius: 1,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        }}
-                      >
-                        <Stack direction="row" spacing={1} alignItems="start">
-                          <Chip
-                            label={button.type === 'QUICK_REPLY' ? 'Resposta' : button.type === 'URL' ? 'Link' : 'Tel'}
-                            size="small"
-                            color={
-                              button.type === 'QUICK_REPLY'
-                                ? 'primary'
-                                : button.type === 'URL'
-                                ? 'secondary'
-                                : 'info'
-                            }
-                          />
-                          <TextField
-                            size="small"
-                            label="Texto do Botão"
-                            value={button.text}
-                            onChange={(e) => updateButton(index, 'text', e.target.value)}
-                            sx={{ flexGrow: 1 }}
-                            inputProps={{ maxLength: 25 }}
-                            helperText={`${button.text?.length || 0}/25`}
-                          />
-                          {button.type === 'URL' && (
-                            <TextField
-                              size="small"
-                              label="URL"
-                              value={button.url || ''}
-                              onChange={(e) => updateButton(index, 'url', e.target.value)}
-                              placeholder="https://loja.com"
-                              sx={{ flexGrow: 1 }}
-                            />
-                          )}
-                          {button.type === 'PHONE_NUMBER' && (
-                            <TextField
-                              size="small"
-                              label="Telefone"
-                              value={button.phoneNumber || ''}
-                              onChange={(e) => updateButton(index, 'phoneNumber', e.target.value)}
-                              placeholder="+5511999999999"
-                              sx={{ flexGrow: 1 }}
-                            />
-                          )}
-                          <IconButton size="small" onClick={() => removeButton(index)} color="error">
-                            <Delete />
-                          </IconButton>
-                        </Stack>
-                      </Box>
-                    ))}
+                    {formData.buttons?.map((button, index) => {
+                      // Verificar se a URL tem variáveis dinâmicas
+                      const hasVariableInUrl = button.type === 'URL' && button.url && /\{\{(link|nome|total|produtos)\}\}/.test(button.url)
+
+                      return (
+                        <Box
+                          key={index}
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            bgcolor: 'action.hover',
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Stack spacing={1.5}>
+                            <Stack direction="row" spacing={1} alignItems="start">
+                              <Chip
+                                label={button.type === 'QUICK_REPLY' ? 'Resposta' : button.type === 'URL' ? 'Link' : 'Tel'}
+                                size="small"
+                                color={
+                                  button.type === 'QUICK_REPLY'
+                                    ? 'primary'
+                                    : button.type === 'URL'
+                                    ? 'secondary'
+                                    : 'info'
+                                }
+                              />
+                              <TextField
+                                size="small"
+                                label="Texto do Botão"
+                                value={button.text}
+                                onChange={(e) => updateButton(index, 'text', e.target.value)}
+                                sx={{ flexGrow: 1 }}
+                                inputProps={{ maxLength: 25 }}
+                                helperText={`${button.text?.length || 0}/25`}
+                              />
+                              {button.type === 'URL' && (
+                                <TextField
+                                  size="small"
+                                  label="URL"
+                                  value={button.url || ''}
+                                  onChange={(e) => updateButton(index, 'url', e.target.value)}
+                                  placeholder="https://loja.com/cart/{{link}}"
+                                  sx={{ flexGrow: 1 }}
+                                  helperText="Use {{link}} para URL dinâmica"
+                                />
+                              )}
+                              {button.type === 'PHONE_NUMBER' && (
+                                <TextField
+                                  size="small"
+                                  label="Telefone"
+                                  value={button.phoneNumber || ''}
+                                  onChange={(e) => updateButton(index, 'phoneNumber', e.target.value)}
+                                  placeholder="+5511999999999"
+                                  sx={{ flexGrow: 1 }}
+                                />
+                              )}
+                              <IconButton size="small" onClick={() => removeButton(index)} color="error">
+                                <Delete />
+                              </IconButton>
+                            </Stack>
+
+                            {/* Campo de exemplo de URL - aparece apenas se tiver variável */}
+                            {hasVariableInUrl && (
+                              <Box sx={{ ml: 5 }}>
+                                <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+                                  <Typography variant="caption">
+                                    <strong>URL Dinâmica Detectada!</strong> Forneça um exemplo de como ficará a URL final (obrigatório para Meta API)
+                                  </Typography>
+                                </Alert>
+                                <TextField
+                                  size="small"
+                                  fullWidth
+                                  label="Exemplo de URL"
+                                  value={button.urlExample || ''}
+                                  onChange={(e) => updateButton(index, 'urlExample', e.target.value)}
+                                  placeholder="Ex: https://loja.com/cart/abc123xyz"
+                                  helperText="Exemplo real de como ficará o link (substituindo {{link}} por um valor)"
+                                  required
+                                />
+                              </Box>
+                            )}
+                          </Stack>
+                        </Box>
+                      )
+                    })}
                   </CardContent>
                 </Card>
               </Grid>
