@@ -224,11 +224,11 @@ export default class MessageTemplatesController {
           buttons: data.buttons.map((btn: any) => {
             const button: any = { type: btn.type, text: btn.text }
             if (btn.type === 'URL' && btn.url) {
-              let buttonUrl = btn.url
+              let buttonUrl = btn.url.trim()
 
               // Converter variáveis nomeadas para numeradas na URL do botão
               // Meta API espera {{1}} para variáveis em botões URL
-              // IMPORTANTE: Botões URL precisam ter uma URL base válida (não pode ser apenas {{link}})
+              // IMPORTANTE: A variável {{1}} DEVE estar no FINAL da URL
               if (buttonUrl.includes('{{link}}')) {
                 buttonUrl = buttonUrl.replace(/\{\{link\}\}/g, '{{1}}')
               } else if (buttonUrl.includes('{{nome}}')) {
@@ -239,19 +239,34 @@ export default class MessageTemplatesController {
                 buttonUrl = buttonUrl.replace(/\{\{produtos\}\}/g, '{{1}}')
               }
 
+              // VALIDAÇÃO: A Meta API requer que {{1}} esteja no FINAL da URL
+              // Verificar se a variável está no final (pode ter query params depois)
+              if (buttonUrl.includes('{{1}}')) {
+                const hasVariableInMiddle = /\{\{1\}\}\//.test(buttonUrl) // {{1}} seguido de /
+                if (hasVariableInMiddle) {
+                  throw new Error(
+                    'A variável {{link}} deve estar no FINAL da URL. Exemplo correto: https://loja.com/cart/{{link}}'
+                  )
+                }
+              }
+
               button.url = buttonUrl
 
               // Se a URL tem variável dinâmica, adicionar example
               // O example deve ser uma URL completa válida
               if (buttonUrl.includes('{{1}}')) {
                 if (btn.urlExample) {
-                  // Usar exemplo fornecido pelo usuário
-                  button.example = [btn.urlExample]
+                  // Usar exemplo fornecido pelo usuário (remover espaços)
+                  button.example = [btn.urlExample.trim()]
                 } else {
                   // Fallback: gerar example automaticamente
                   const exampleUrl = buttonUrl.replace(/\{\{1\}\}/g, 'abc123xyz')
                   button.example = [exampleUrl]
                 }
+
+                console.log(`[BUTTON URL] Original: ${btn.url}`)
+                console.log(`[BUTTON URL] Converted: ${buttonUrl}`)
+                console.log(`[BUTTON URL] Example: ${button.example[0]}`)
               }
             } else if (btn.type === 'PHONE_NUMBER' && btn.phoneNumber) {
               button.phone_number = btn.phoneNumber
@@ -263,6 +278,13 @@ export default class MessageTemplatesController {
       }
 
       metaComponents = components
+
+      // LOG DETALHADO: Ver o que está sendo salvo
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📤 CRIANDO TEMPLATE META - COMPONENTS:')
+      console.log(JSON.stringify(components, null, 2))
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
       // Salvar bodyText original (com variáveis nomeadas) como content para exibição no painel
       content = data.bodyText
 
