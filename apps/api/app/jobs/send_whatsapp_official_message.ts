@@ -6,6 +6,7 @@ import AbandonedCart from '#models/abandoned_cart'
 import Subscription from '#models/subscription'
 import UnifiedMessageLog from '#models/unified_message_log'
 import whatsappOfficialService from '#services/whatsapp_official_service'
+import { addUtmTracking } from '#utils/utm_tracking'
 import { DateTime } from 'luxon'
 
 export interface SendOfficialMessageData {
@@ -110,11 +111,14 @@ export async function sendWhatsappOfficialMessage(
   }
 
   // 6. Montar os parâmetros das variáveis do template
+  // Adicionar UTM tracking ao link do carrinho (usando nome do template)
+  const trackedUrl = addUtmTracking(cart.cartUrl, template.name)
+
   // Pool de valores disponíveis
   const availableValues: Record<string, string> = {
     nome: cart.customerName || 'Cliente',
     produtos: formatProducts(cart.items || []),
-    link: cart.cartUrl || '',
+    link: trackedUrl || '',
     total: formatCurrency(cart.totalValue || 0),
   }
 

@@ -10,6 +10,7 @@ import evolutionWorkaround from '#services/evolution_workaround_service'
 import queueService from '#jobs/queue_service'
 import RateLimiterService from '#services/rate_limiter_service'
 import WhatsappHealthService from '#services/whatsapp_health_service'
+import { addUtmTracking } from '#utils/utm_tracking'
 import { DateTime } from 'luxon'
 
 /**
@@ -105,11 +106,14 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
   const rateLimiter = new RateLimiterService()
   const healthService = new WhatsappHealthService()
 
+  // Adicionar UTM tracking ao link do carrinho (usando nome do template)
+  const trackedUrl = addUtmTracking(cart.cartUrl, template.name)
+
   // Montar mensagem antes de validar (precisa do conteúdo)
   const finalMessage = replacePlaceholders(template.content, {
     nome: cart.customerName || 'Cliente',
     produtos: formatProducts(cart.items || []),
-    link: cart.cartUrl || '[Link não disponível]',
+    link: trackedUrl || '[Link não disponível]',
     total: formatCurrency(cart.totalValue || 0),
   })
 
@@ -169,7 +173,7 @@ export async function sendWhatsappMessage(job: Job<SendMessageData>): Promise<vo
     templateVariables: {
       nome: cart.customerName || 'Cliente',
       produtos: formatProducts(cart.items || []),
-      link: cart.cartUrl || '[Link não disponível]',
+      link: trackedUrl || '[Link não disponível]',
       total: formatCurrency(cart.totalValue || 0),
     },
     metadata: {
