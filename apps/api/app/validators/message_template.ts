@@ -27,7 +27,12 @@ export const createMessageTemplateValidator = vine.compile(
         vine.object({
           type: vine.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER']),
           text: vine.string().trim().minLength(1).maxLength(25),
-          url: vine.string().url().optional(),
+          // Aceita URLs válidas ou variáveis de template como {{link}}, {{1}}, etc
+          url: vine
+            .string()
+            .trim()
+            .regex(/^(https?:\/\/.+|\{\{.+\}\})$/)
+            .optional(),
           phoneNumber: vine.string().optional(),
         })
       )
