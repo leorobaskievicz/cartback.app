@@ -160,18 +160,20 @@ export class TemplateSyncService {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     try {
+      const payload = {
+        name,
+        category: template.metaCategory || 'MARKETING',
+        language: template.metaLanguage || 'pt_BR',
+        components,
+      }
+
       const metaTemplate = await whatsappOfficialService.createTemplate(
         {
           phoneNumberId: credential.phoneNumberId,
           wabaId: credential.wabaId,
           accessToken: credential.accessToken,
         },
-        {
-          name,
-          category: template.metaCategory || 'MARKETING',
-          language: template.metaLanguage || 'pt_BR',
-          components,
-        }
+        payload
       )
 
       // Atualizar template com info da Meta
@@ -187,14 +189,31 @@ export class TemplateSyncService {
       )
     } catch (error: any) {
       console.error(`❌ Failed to sync template to Meta:`, error.message)
+      console.error('PAYLOAD ENVIADO:', JSON.stringify({
+        name,
+        category: template.metaCategory || 'MARKETING',
+        language: template.metaLanguage || 'pt_BR',
+        components,
+      }, null, 2))
+
+      // Melhorar mensagem de erro com detalhes do payload
+      let errorMessage = error.response?.data?.error?.message || error.message
+
+      // Se for erro de botão URL, adicionar informações úteis
+      if (errorMessage.includes('buttons') && errorMessage.includes('url')) {
+        const buttonsComponent = components.find((c: any) => c.type === 'BUTTONS')
+        if (buttonsComponent) {
+          errorMessage += `\n\nPayload do botão enviado:\n${JSON.stringify(buttonsComponent, null, 2)}`
+        }
+      }
 
       // Atualizar com erro
       template.metaStatus = 'rejected'
-      template.metaRejectionReason = error.response?.data?.error?.message || error.message
+      template.metaRejectionReason = errorMessage
       template.syncedAt = DateTime.now()
       await template.save()
 
-      throw error
+      throw new Error(errorMessage)
     }
   }
 
