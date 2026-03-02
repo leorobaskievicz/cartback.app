@@ -245,16 +245,47 @@ export async function sendWhatsappOfficialMessage(
       )
       console.log(`[OfficialMsg] Parâmetros (${bodyParams.length}):`, bodyParams)
 
+      // Construir components para envio
+      const sendComponents: any[] = [
+        {
+          type: 'body',
+          parameters: bodyParams.map((text) => ({ type: 'text', text })),
+        },
+      ]
+
+      // Se o template tem botões URL dinâmicos, adicionar parâmetros
+      if (template.metaComponents) {
+        try {
+          const components = typeof template.metaComponents === 'string'
+            ? JSON.parse(template.metaComponents)
+            : template.metaComponents
+
+          const buttonsComponent = components.find((c: any) => c.type === 'BUTTONS')
+          if (buttonsComponent?.buttons) {
+            buttonsComponent.buttons.forEach((btn: any, index: number) => {
+              // Se é botão URL e tem variável {{1}}
+              if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
+                // Usar availableValues.link (que já tem UTM tracking)
+                sendComponents.push({
+                  type: 'button',
+                  sub_type: 'url',
+                  index: index.toString(),
+                  parameters: [{ type: 'text', text: availableValues.link }],
+                })
+                console.log(`[OfficialMsg] Adicionando parâmetro de botão URL[${index}]: ${availableValues.link}`)
+              }
+            })
+          }
+        } catch (error) {
+          console.error('[OfficialMsg] Erro ao processar botões:', error)
+        }
+      }
+
       result = await whatsappOfficialService.sendTemplateMessage(credentials, {
         to: cart.customerPhone,
         templateName: template.metaTemplateName!,
         languageCode: template.metaLanguage,
-        components: [
-          {
-            type: 'body',
-            parameters: bodyParams.map((text) => ({ type: 'text', text })),
-          },
-        ],
+        components: sendComponents,
       })
 
       // 7. Atualizar log com sucesso
