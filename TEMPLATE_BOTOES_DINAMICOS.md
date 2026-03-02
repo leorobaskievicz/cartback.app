@@ -1,46 +1,65 @@
 # Botões Dinâmicos em Templates do WhatsApp
 
+## ⚠️ IMPORTANTE: O problema mais comum
+
+**ERRO:** Colocar apenas `{{link}}` no campo URL do botão  
+**CORRETO:** Colocar a URL **COMPLETA** com `{{link}}` no final
+
 ## Como usar botões URL com links dinâmicos
 
-Para criar um botão de URL dinâmico (que muda de acordo com o carrinho de cada cliente), a **URL precisa ter uma base fixa válida** com a variável no final.
+Para criar um botão de URL dinâmico (que muda de acordo com o carrinho de cada cliente), a **URL COMPLETA** precisa ser fornecida com a variável no final.
 
 ### ✅ Formato CORRETO
 
+**Exemplo real do CallFarma:**
 ```json
 {
   "buttons": [{
     "type": "URL",
     "text": "Finalizar Pedido",
-    "url": "https://minhaloja.com/cart/{{link}}",
-    "urlExample": "https://minhaloja.com/cart/abc123xyz"
+    "url": "https://callfarma.com.br/?carrinho={{link}}&pagamento=true&repres=7797",
+    "urlExample": "https://callfarma.com.br/?carrinho=468673&pagamento=true&repres=7797"
   }]
 }
 ```
 
-**Campos obrigatórios para botões dinâmicos:**
-- `url`: URL com variável `{{link}}` que será substituída pelo ID/token de cada carrinho
-- `urlExample`: Exemplo real de como ficará a URL (usado pela Meta API para validação)
+**Campos obrigatórios:**
+- `url`: URL **COMPLETA** com `{{link}}` no final (não apenas `{{link}}`)
+- `urlExample`: Exemplo **COMPLETO** de como ficará a URL real
 
-A variável `{{link}}` será substituída pelo ID/token do carrinho de cada cliente.
+**Pontos importantes:**
+- ✅ URL deve começar com `https://` ou `http://`
+- ✅ A variável `{{link}}` deve estar no FINAL da URL
+- ✅ Pode ter query params antes/depois da variável
+- ✅ O exemplo deve ser uma URL real e válida
 
-**Exemplo de URL final enviada:**
-```
-https://minhaloja.com/cart/abc123xyz?utm_source=cartback&utm_medium=whatsapp&utm_campaign=abandono_carrinho_1
-```
+### ❌ Formatos INCORRETOS
 
-### ❌ Formato INCORRETO
-
+**Erro 1: Apenas a variável (MAIS COMUM)**
 ```json
 {
   "buttons": [{
-    "type": "URL", 
+    "type": "URL",
     "text": "Finalizar Pedido",
-    "url": "{{link}}"  ← ERRO: Meta API rejeita URLs que são apenas variáveis
+    "url": "{{link}}"  ← ERRO: Não é uma URL completa!
   }]
 }
 ```
-
 **Erro da Meta:** `Param components[2]['buttons'][0]['url'] is not a valid URI`
+
+**Erro 2: URL sem https://**
+```json
+{
+  "url": "callfarma.com.br/?carrinho={{link}}"  ← ERRO: Falta https://
+}
+```
+
+**Erro 3: Variável no meio da URL**
+```json
+{
+  "url": "https://loja.com/cart/{{link}}/checkout"  ← ERRO: Variável não está no final
+}
+```
 
 ## Variáveis disponíveis para botões
 
@@ -79,42 +98,60 @@ O CartBack adiciona **automaticamente** parâmetros UTM aos links:
 
 Isso permite rastrear conversões no Google Analytics e saber qual template gerou mais vendas!
 
-### Exemplo completo de payload
+### Exemplo completo de payload (CallFarma)
 
 ```json
 {
   "name": "Abandono Carrinho 1",
-  "bodyText": "Oi {{nome}}! Seu carrinho está esperando 🛒",
+  "bodyText": "Oi {{nome}}! 💚\n\nSeu carrinho está quase finalizado 🛒✨",
   "bodyExamples": {
-    "nome": "João Silva"
+    "nome": "João da Silva"
   },
-  "footerText": "Loja Exemplo",
+  "footerText": "callfarma.com.br",
   "buttons": [{
     "type": "URL",
-    "text": "Ver Carrinho",
-    "url": "https://loja.com/cart/{{link}}",
-    "urlExample": "https://loja.com/cart/abc123xyz"
+    "text": "Finalizar Pedido",
+    "url": "https://callfarma.com.br/?carrinho={{link}}&pagamento=true&repres=7797",
+    "urlExample": "https://callfarma.com.br/?carrinho=468673&pagamento=true&repres=7797"
   }],
   "metaMode": true,
   "metaLanguage": "pt_BR",
-  "metaCategory": "UTILITY"
+  "metaCategory": "UTILITY",
+  "triggerType": "abandoned_cart",
+  "delayMinutes": 20,
+  "isActive": true
 }
 ```
 
-**URL final enviada ao cliente:**
+**URL final enviada ao cliente (com UTM automático):**
 ```
-https://loja.com/cart/abc123xyz?utm_source=cartback&utm_medium=whatsapp&utm_campaign=abandono_carrinho_1
+https://callfarma.com.br/?carrinho=468673&pagamento=true&repres=7797&utm_source=cartback&utm_medium=whatsapp&utm_campaign=abandono_carrinho_1
 ```
 
-## No Frontend (Modal de cadastro)
+## Passo a Passo no Frontend
 
-Quando o usuário adiciona um botão URL com variável:
+1. **Criar Template** → Modo Completo (Meta API)
+2. **Adicionar Botão** → Tipo: Link (URL)
+3. **Texto do Botão:** "Finalizar Pedido"
+4. **URL Completa:** `https://callfarma.com.br/?carrinho={{link}}&pagamento=true&repres=7797`
+   - ⚠️ NÃO coloque apenas `{{link}}`!
+   - ✅ Coloque a URL completa com `{{link}}` incluído
+5. **Exemplo de URL:** Aparece automaticamente quando detecta `{{link}}`
+   - Preencha: `https://callfarma.com.br/?carrinho=468673&pagamento=true&repres=7797`
+   - Deve ser uma URL real sem `{{link}}`
+6. **Salvar e Sincronizar** com Meta
 
-1. Campo **"URL do Botão"**: `https://loja.com/cart/{{link}}`
-2. Campo **"Exemplo de URL"**: `https://loja.com/cart/abc123xyz`
-   - Placeholder sugerido: "Ex: https://loja.com/cart/abc123xyz"
-   - Validação: deve ser uma URL válida completa
-   - Aparece apenas quando a URL contém `{{link}}` ou outras variáveis
+## Validações do Sistema
+
+O CartBack agora valida automaticamente:
+
+1. ✅ URL não pode ser apenas `{{link}}` (deve ser URL completa)
+2. ✅ URL deve começar com `https://` ou `http://`
+3. ✅ Variável `{{link}}` deve estar no final (não no meio)
+4. ✅ Campo de exemplo é obrigatório quando há variável
+5. ✅ Exemplo deve ser uma URL válida completa
+
+Se alguma validação falhar, você verá uma mensagem clara indicando o erro.
 
 ## Formato Meta API (interno)
 

@@ -792,12 +792,13 @@ export default function TemplateFormDialog({
                               {button.type === 'URL' && (
                                 <TextField
                                   size="small"
-                                  label="URL"
+                                  label="URL Completa"
                                   value={button.url || ''}
                                   onChange={(e) => updateButton(index, 'url', e.target.value)}
-                                  placeholder="https://loja.com/cart/{{link}}"
+                                  placeholder="https://callfarma.com.br/?carrinho={{link}}"
                                   sx={{ flexGrow: 1 }}
-                                  helperText="Use {{link}} para URL dinâmica"
+                                  helperText="URL completa com {{link}} no final (não coloque apenas {{link}})"
+                                  error={button.url && /^\{\{(link|nome|total|produtos)\}\}$/.test(button.url.trim())}
                                 />
                               )}
                               {button.type === 'PHONE_NUMBER' && (
@@ -826,13 +827,28 @@ export default function TemplateFormDialog({
                                 <TextField
                                   size="small"
                                   fullWidth
-                                  label="Exemplo de URL"
+                                  label="Exemplo de URL Completa"
                                   value={button.urlExample || ''}
                                   onChange={(e) => updateButton(index, 'urlExample', e.target.value)}
-                                  placeholder="Ex: https://loja.com/cart/abc123xyz"
-                                  helperText="Exemplo real de como ficará o link (substituindo {{link}} por um valor)"
+                                  placeholder="Ex: https://callfarma.com.br/?carrinho=abc123&pagamento=true&repres=7797"
+                                  helperText="Exemplo COMPLETO da URL final (substituindo {{link}} por um valor real)"
                                   required
                                 />
+                              </Box>
+                            )}
+
+                            {/* Alerta se URL for apenas variável */}
+                            {button.type === 'URL' && button.url && /^\{\{(link|nome|total|produtos)\}\}$/.test(button.url.trim()) && (
+                              <Box sx={{ ml: 5 }}>
+                                <Alert severity="error">
+                                  <Typography variant="caption">
+                                    <strong>❌ URL Inválida!</strong><br/>
+                                    Você colocou apenas <code>{button.url}</code> no campo URL.<br/>
+                                    A URL precisa ser completa, com a variável no final.<br/><br/>
+                                    <strong>✅ Exemplo correto:</strong> <code>https://callfarma.com.br/?carrinho={'{link}'}</code><br/>
+                                    <strong>❌ Exemplo errado:</strong> <code>{'{link}'}</code>
+                                  </Typography>
+                                </Alert>
                               </Box>
                             )}
                           </Stack>

@@ -226,6 +226,28 @@ export default class MessageTemplatesController {
             if (btn.type === 'URL' && btn.url) {
               let buttonUrl = btn.url.trim()
 
+              // VALIDAÇÃO 1: URL não pode ser APENAS a variável
+              // Meta API rejeita URLs que são apenas {{link}} ou {{1}}
+              if (/^\{\{(link|nome|total|produtos)\}\}$/.test(buttonUrl)) {
+                throw new Error(
+                  `❌ URL inválida: "${buttonUrl}"\n\n` +
+                  `A URL do botão não pode ser APENAS uma variável.\n` +
+                  `Você precisa fornecer uma URL completa com a variável no final.\n\n` +
+                  `✅ CORRETO: https://callfarma.com.br/?carrinho={{link}}\n` +
+                  `❌ ERRADO: {{link}}`
+                )
+              }
+
+              // VALIDAÇÃO 2: URL deve começar com https://
+              if (!buttonUrl.startsWith('https://') && !buttonUrl.startsWith('http://')) {
+                throw new Error(
+                  `❌ URL inválida: "${buttonUrl}"\n\n` +
+                  `A URL do botão deve começar com https:// ou http://\n\n` +
+                  `✅ CORRETO: https://callfarma.com.br/?carrinho={{link}}\n` +
+                  `❌ ERRADO: ${buttonUrl}`
+                )
+              }
+
               // Converter variáveis nomeadas para numeradas na URL do botão
               // Meta API espera {{1}} para variáveis em botões URL
               // IMPORTANTE: A variável {{1}} DEVE estar no FINAL da URL
@@ -239,7 +261,7 @@ export default class MessageTemplatesController {
                 buttonUrl = buttonUrl.replace(/\{\{produtos\}\}/g, '{{1}}')
               }
 
-              // VALIDAÇÃO: A Meta API requer que {{1}} esteja no FINAL da URL
+              // VALIDAÇÃO 3: A Meta API requer que {{1}} esteja no FINAL da URL
               // Verificar se a variável está no final (pode ter query params depois)
               if (buttonUrl.includes('{{1}}')) {
                 const hasVariableInMiddle = /\{\{1\}\}\//.test(buttonUrl) // {{1}} seguido de /
