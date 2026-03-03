@@ -210,6 +210,16 @@ export async function sendWhatsappOfficialMessage(
         cart.customerPhone,
         textMessage
       )
+
+      // Atualizar log para mensagem de texto
+      officialLog.status = 'sent'
+      officialLog.metaMessageId = result?.messages?.[0]?.id || null
+      officialLog.bodyParams = JSON.stringify(allParams)
+      officialLog.sentAt = DateTime.now()
+      await officialLog.save()
+
+      // Atualizar log unificado
+      await unifiedLog.markAsSent(result?.messages?.[0]?.id)
     } else {
       // Enviar como template Meta aprovado
       // Detectar quantas variáveis o template tem baseado em meta_components
@@ -288,20 +298,10 @@ export async function sendWhatsappOfficialMessage(
         components: sendComponents,
       })
 
-      // 7. Atualizar log com sucesso
+      // 7. Atualizar log com sucesso para template Meta
       officialLog.status = 'sent'
       officialLog.metaMessageId = result?.messages?.[0]?.id || null
       officialLog.bodyParams = JSON.stringify(bodyParams)
-      officialLog.sentAt = DateTime.now()
-      await officialLog.save()
-
-      // Atualizar log unificado
-      await unifiedLog.markAsSent(result?.messages?.[0]?.id)
-    } else {
-      // Para mensagens de texto, salvar allParams
-      officialLog.status = 'sent'
-      officialLog.metaMessageId = result?.messages?.[0]?.id || null
-      officialLog.bodyParams = JSON.stringify(allParams)
       officialLog.sentAt = DateTime.now()
       await officialLog.save()
 
